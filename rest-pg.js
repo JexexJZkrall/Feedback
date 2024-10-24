@@ -255,7 +255,7 @@ module.exports.multiSQL = function(params){
         else{
             qry = db.query(sql);
         }
-        var arr = [];
+        var arr = [];    
         qry.on("row",function(row){
             if(params.onRow!=null){
                 var k = params.onRow(row);

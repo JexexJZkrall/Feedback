@@ -63,25 +63,41 @@ app.get("/forgot-pass", function(req,res){
     res.render("forgot-pass");
 });
 
-app.post("/login", function(req,res){
+app.post("/login", async function(req,res){
     var sql = "select id as login from users where (username = $1 and pass = $2) or (mail = $3 and pass=$4)";
     var db = new pg.Client(conString);
-    db.connect();
+    try {	
+        await db.connect();    
+    } catch (err) {
+	    console.log(err);
+    }
     var passenc = crypto.createHash('md5').update(req.body.pass).digest('hex');
-    var qry = db.query(sql,[req.body.user,passenc,req.body.user,passenc]);
-    var id = -1;
-    qry.on("row",function(row){
-        id = row.login;
-    });
-    qry.on("end",function(){
-        if(id!=-1) {
-            req.session.uid = id;
-            res.redirect(".");
-        }
-        else{
-            res.redirect("login?rc=2");
-        }
-    });
+    let id = -1;
+    try {	
+    	var qry = await db.query(sql,[req.body.user,passenc,req.body.user,passenc]);
+	id = qry.rows[0].login;    
+    } catch (err) {
+	    console.log(err);
+    }
+    if (id != -1) {
+	    req.session.uid = id;
+	    res.redirect(".");
+    } else {
+	    res.redirect("login?rc=2");
+    }
+    //qry.on("row",function(row){
+	//console.log(row.login);    
+        //id = row.login;
+    //});
+    //qry.on("end",function(){
+        //if(id!=-1) {
+            //req.session.uid = id;
+            //res.redirect(".");
+        //}
+        //else{
+            //res.redirect("login?rc=2");
+        //}
+    //});
 });
 
 app.post("/register", rpg.execSQL({
@@ -89,13 +105,24 @@ app.post("/register", rpg.execSQL({
     sql: "insert into users(username,pass,fullname,mail,sex) values ($1,$2,$3,$4,$5)",
     postReqData: ["name","user","pass","mail","sex"],
     onStart: function(ses,data,calc){
-        if(data.pass.length<5) return "select $1, $2, $3 from users";
-        calc.passcr = crypto.createHash('md5').update(data.pass).digest('hex');
-        calc.fullname = (data.name+" "+data.lastname);
+	try {
+		console.log("before sending query:", data);
+        	if(data.pass.length<5) return "select $1, $2, $3 from users";
+		console.log("checkpoint 2");
+        	calc.passcr = crypto.createHash('md5').update(data.pass).digest('hex');
+        	calc.fullname = (data.name+" "+data.lastname);
+		console.log("checkpoint 3");
+	} catch (error) {
+		console.error("error on start:",error);
+	}
     },
     sqlParams: [rpg.sqlParam("post","user"),rpg.sqlParam("calc","passcr"),rpg.sqlParam("calc","fullname"),
         rpg.sqlParam("post","mail"),rpg.sqlParam("post","sex")],
-    onEnd: function(req,res){
+    onEnd: function(req,res,error){
+	console.log("checkpoint onEnd funtion");
+	if (error) {
+		console.error("error on end:",error);
+	}
         res.redirect("login?rc=1");
     }
 }));
