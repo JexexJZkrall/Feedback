@@ -48,7 +48,7 @@ module.exports.execSQL = function(params){
     if(params.sql == null || params.sql == "" || params.dbcon == null || params.dbcon == "")
         return null;
 
-    return function(req,res){
+    return async function(req,res){
         var ses;
         ses = req.session;
         //res.header("Content-type","application/json");
@@ -87,21 +87,24 @@ module.exports.execSQL = function(params){
         else
             sql = params.sql;
         var qry;
-        if(params.sqlParams != null){
-            var sqlarr = smartArrayConvert(params,ses,data,calc);
-            qry = db.query(sql,sqlarr);
-        }
-        else{
-            qry = db.query(sql);
-        }
-        qry.on("end",function(){
-            if(params.onEnd != null)
+        try{
+            if(params.sqlParams != null){
+                var sqlarr = smartArrayConvert(params,ses,data,calc);
+                qry = await db.query(sql,sqlarr);
+            }
+            else{
+                qry = await db.query(sql);
+            }
+            if(params.onEnd != null){
                 params.onEnd(req,res);
-            else
+            }else{
                 res.send('{"status":"ok"}');
+            }
             res.end();
             db.end();
-        });
+        } catch(error){
+            console.error("error while executing query:", error);
+        }
         //});
     }
 };
@@ -169,6 +172,28 @@ module.exports.singleSQL = function(params){
             qry = db.query(sql);
         }
         var result = {};
+        qry.then(function(response){
+            response.rows.forEach(function(row){
+                if (params.onSelect!=null) {
+                    result = params.onSelect(row);
+                } else {
+                    result = row;
+                }
+            });
+            if (params.onEnd!=null){
+                params.onEnd(req,res,result);
+            } else {
+                result["status"] = "ok";
+                res.end(JSON.stringify(result));
+            }
+            res.end();
+            db.end();
+        }).catch(function(error){
+            console.error("Error while executing query:", error);
+            res.status(500).end(JSON.stringify({status: "error", message: error.message}));
+            db.end();
+        });
+        /*
         qry.on("row",function(row){
             if(params.onSelect!=null){
                 result = params.onSelect(row);
@@ -187,6 +212,7 @@ module.exports.singleSQL = function(params){
             res.end();
             db.end();
         });
+        */
         //});
     }
 };
@@ -255,7 +281,29 @@ module.exports.multiSQL = function(params){
         else{
             qry = db.query(sql);
         }
-        var arr = [];    
+        var arr = [];
+        qry.then(function(response){
+            response.rows.forEach(function(row){
+                if (params.onRow!=null){
+                    var k = params.onRow(row);
+                    if(k!=null) arr.push(k);
+                } else {
+                    arr.push(row);
+                }
+            });
+            if (params.onEnd!=null){
+                params.onEnd(req,res,arr);
+            } else {
+                res.send(JSON.stringify(arr));
+            }
+            res.end();
+            db.end();
+        }).catch(function(error){
+            console.error("Error while executing query:", error);
+            res.status(500).json({status: "error", message: error.message});
+            db.end();
+        });
+        /*
         qry.on("row",function(row){
             if(params.onRow!=null){
                 var k = params.onRow(row);
@@ -273,6 +321,7 @@ module.exports.multiSQL = function(params){
             res.end();
             db.end();
         });
+        */
         //});
     }
 };
