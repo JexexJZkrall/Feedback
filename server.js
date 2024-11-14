@@ -67,15 +67,15 @@ app.post("/login", async function(req,res){
     var sql = "select id as login from users where (username = $1 and pass = $2) or (mail = $3 and pass=$4)";
     var db = new pg.Client(conString);
     try {	
-        await db.connect();    
+        await db.connect();
     } catch (err) {
 	    console.log(err);
     }
     var passenc = crypto.createHash('md5').update(req.body.pass).digest('hex');
     let id = -1;
-    try {	
+    try {
     	var qry = await db.query(sql,[req.body.user,passenc,req.body.user,passenc]);
-	id = qry.rows[0].login;    
+        id = qry.rows[0].login;    
     } catch (err) {
 	    console.log(err);
     }
@@ -106,22 +106,18 @@ app.post("/register", rpg.execSQL({
     postReqData: ["name","user","pass","mail","sex"],
     onStart: function(ses,data,calc){
 	try {
-		console.log("before sending query:", data);
-        	if(data.pass.length<5) return "select $1, $2, $3 from users";
-		console.log("checkpoint 2");
-        	calc.passcr = crypto.createHash('md5').update(data.pass).digest('hex');
-        	calc.fullname = (data.name+" "+data.lastname);
-		console.log("checkpoint 3");
+        if(data.pass.length<5) return "select $1, $2, $3 from users";
+        calc.passcr = crypto.createHash('md5').update(data.pass).digest('hex');
+        calc.fullname = (data.name+" "+data.lastname);
 	} catch (error) {
-		console.error("error on start:",error);
+		console.error("error at register:",error);
 	}
     },
     sqlParams: [rpg.sqlParam("post","user"),rpg.sqlParam("calc","passcr"),rpg.sqlParam("calc","fullname"),
         rpg.sqlParam("post","mail"),rpg.sqlParam("post","sex")],
     onEnd: function(req,res,error){
-	console.log("checkpoint onEnd funtion");
 	if (error) {
-		console.error("error on end:",error);
+		console.error("error at register:",error);
 	}
         res.redirect("login?rc=1");
     }
@@ -291,7 +287,7 @@ function addSesUser(uid,ses){
     var db = new pg.Client(conString);
     db.connect();
     var qry = db.query(sql,[ses,uid]);
-    qry.on("end",function(){
+    qry.then(function(response){
         db.end();
     });
 }
