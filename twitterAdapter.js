@@ -159,9 +159,14 @@ function addDBTweet(tw,ses){
     var db = new pg.Client(conString);
     db.connect();
     var qry = db.query(sql,[tw.descr,new Date(tw.time),tw.author,ses,tw.geom,tw.extra]);
+    qry.then(function(response){
+        db.end();
+    });
+    /*
     qry.on("end",function(){
         db.end();
     });
+    */
 }
 
 /**
@@ -175,7 +180,12 @@ var storeDBSearch = function(uid,ses,text){
     var db = new pg.Client(conString);
     db.connect();
     var qry = db.query(sql,[uid,ses,text]);
+    qry.then(function(response){
+        db.end();
+    });
+    /*
     qry.on("end",function(){
         db.end();
     });
+    */
 };
