@@ -8,6 +8,7 @@ var bb = require('express-busboy');
 var twAdpt = require("./twitterAdapter.js");
 var socket = require("./socket-config.js");
 let mailer = require("nodemailer");
+var aiAdpt = require("./aiAssistant.js");
 
 var app = module.exports = express();
 var conString = require("./passwords.js")("conString");
@@ -281,6 +282,7 @@ app.post("/send-chat-msg", rpg.execSQL({
     }
 }));
 
+app.post("/ask-assistant", aiAdpt.askAssistant(socket));
 
 function addSesUser(uid,ses){
     var sql = "insert into sesusers(sesid,uid) values ($1,$2)";

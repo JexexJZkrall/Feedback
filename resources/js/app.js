@@ -1119,8 +1119,8 @@ app.controller("ChatController", function($scope, $http){
     };
 
     self.updateChat = () => {
-        $http.post("get-chat").success((data) => {
-            self.chatMsgs = data.map(e => {
+        $http.post("get-chat").then((response) => {
+            self.chatMsgs = response.data.map(e => {
                 e.prettyContent = self.shared.prettyPrintFeed(e.content, null);
                 return e;
             });
@@ -1129,9 +1129,18 @@ app.controller("ChatController", function($scope, $http){
 
     self.sendChatMsg = () => {
         if(self.newMsg == null || self.newMsg === "") return;
-        $http.post("send-chat-msg", {msg: self.newMsg}).success((data) => {
+        $http.post("send-chat-msg", {msg: self.newMsg}).then(() => {
             self.updateChat();
+            if (/^@bot/.test(self.newMsg)){
+                $http.post("ask-assistant", {msg:self.newMsg}).then(() => {
+                    self.updateChat();
+                }).catch((error) => {
+                    console.error("Error in sending bot message:", error);
+                });
+            }
             self.newMsg = "";
+        }).catch((error) => {
+            console.error("Error in sending chat message:", error);
         });
     };
 
