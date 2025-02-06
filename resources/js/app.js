@@ -545,6 +545,7 @@ app.controller("MapController",function($scope){
             //console.log(fd);
             if(fd != null && fd.extra!=null){
                 var coords = fd.extra.split("|")[2];
+                self.shared.hlcoords = coords;
                 fuzzhgl[coords] = true;
             }
         }
@@ -1146,6 +1147,7 @@ app.controller("ChatController", function($scope, $http){
 
     self.shared.referenceMsg = (id) => {
         self.newMsg += " %M"+id+" ";
+        self.newMsg += "Place: "+getPlaceName(wktToLatLng(self.shared.hlcoords))+" ";
     };
 
     init();
@@ -1163,6 +1165,22 @@ var wktToLatLng = function(a) {
     var comps = a.substring(6,a.length-1).split(" ");
     return new google.maps.LatLng(comps[1],comps[0]);
 };
+
+var getPlaceName = function(latlng) {
+    var geocoder = new google.maps.Geocoder();
+
+    geocoder.geocode({ location: latlng }, function(results, status) {
+        if (status === "OK") {
+            if (results[0]) {
+                return "Ubicación: "+results[0].formatted_address;
+            } else {
+                return "Sin ubicación disponible";
+            }
+        } else {
+            console.log("Geocoder failed due to: " + status);
+        }
+    });
+}
 
 var getSortedKeys = function(obj){
     var arr = [];
