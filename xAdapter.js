@@ -1,11 +1,12 @@
-var TwitterV2 = require("twitter-api-v2");
+const { TwitterApi } = require("twitter-api-v2");
 var pg = require('pg');
 var twConfig = require("./passwords.js")("twConfig");
 var twSecret = require("./passwords.js")("twSecret");
 var conString = require("./passwords.js")("conString");
 var twCount = require("./passwords")("twCount");
 
-var twSocket = new TwitterV2(twConfig["bearer_token"]);
+const client = new TwitterApi(twConfig["bearer_token"]);
+const rClient = client.readOnly;
 var id_tb = 3;
 
 /**
@@ -16,6 +17,7 @@ var id_tb = 3;
 module.exports.tweetsAsFeeds = function(socket){
     return function(req, res){
         var data = req.body;
+        console.log(data);
         if(req.session.uid==null || data["text"]==null || data["text"]=="" || data["geo"]==null || data["geo"]=="" || data["secret"]!=twSecret){
             res.end("[]");
             return;
@@ -26,16 +28,16 @@ module.exports.tweetsAsFeeds = function(socket){
             geocode: data["geo"]
         };
         var inow = ""+(+Date.now());
-        let fullQuery = data["text"]+" point_radius:["+data["geo"]+"]";
-        twSocket.v2.search(fullQuery,{max_results: twOptions.count,'tweet.fields': ['created_at','geo','author_id'], 'place.fields':['full_name', 'country', 'geo']})
+        let fullQuery = `${data["text"]} geocode:${data["geo"]}`;
+        rClient.v2.search(fullQuery,{max_results: twOptions.count,"tweet.fields": ["created_at","geo","author_id"], "place.fields":["full_name", "country", "geo"], "user.fields": ["username", "name"]})
             .then(response => {
                 console.log(response);
-                if (response.data == null){
+                if (response._realData.data == null){
                     console.error("NO DATA ATTRIBUTE FOUND!");
                     res.end("[]");
                     return;
                 }
-                let arr = response.data.map(adapterTweetToFeed(twOptions.geocode,inow));
+                let arr = response._realData.data.map(adapterTweetToFeed(twOptions.geocode,inow, response));
                 for(var i=0; i<arr.length; i++){
                     addDBTweet(arr[i], req.session.ses);
                 }
@@ -43,6 +45,7 @@ module.exports.tweetsAsFeeds = function(socket){
                 socket.updMsg();
             })
             .catch(err => {
+                console.log("Error whit X request: ",err);
                 res.end("[]");
                 return;
             });
@@ -60,7 +63,7 @@ module.exports.trendings = function(req, res){
     var twOptions = {
         id: 1
     };
-    twSocket.get("trends/place", twOptions, function(err, data, response){
+    rClient.get("trends/place", twOptions, function(err, data, response){
         console.log(data);
         var arr = data[0].trends.map(function(e){
             return {"topic": e.name, "popular": e["tweet_volume"]};
@@ -81,14 +84,14 @@ module.exports.userTweets = function(req, res){
         "include_rts": false
     };
     var inow = ""+(+Date.now());
-    twSocket.v2.userByUsername(data["user"])
+    rClient.v2.userByUsername(data["user"])
         .then(userResponse => {
             let userId = userResponse.data.id;
-            return twSocket.v2.userTimeline(userId,{exclude: 'retweets'});
+            return rClient.v2.userTimeline(userId,{exclude: 'retweets'});
         })
         .then(response => {
             console.log(response);
-            let arr = data.map(adapterTweetToFeed(null,inow));
+            let arr = response.data.map(adapterTweetToFeed(null,inow));
             for(let i=0;i<arr.length;i++){
                 addDBTweet(arr[i], req.session.ses);
             }
@@ -117,13 +120,13 @@ var adapterTweetToFeed = function(gc,inow,response){
             if(tweet.geo.coordinates){
                 geoloc = twCoordToWkt(tweet.geo.coordinates);
             } else if (tweet.geo.place_id){
-                let place = response.includes.places.find(p => p.id === tweet.geo.place_id);
+                let place = response._realData.includes.places.find(p => p.id === tweet.geo.place_id);
                 geoloc = twPlaceCoordToWkt(place.geo.bbox);
             };
         }
         var username = null;
         if(tweet.author_id){
-            username = response.includes.users.find(user => user.id === tweet.author_id).username;
+            username = response._realData.includes.users.find(user => user.id === tweet.author_id).username;
         }
         return {
             id: +(tweet.id),

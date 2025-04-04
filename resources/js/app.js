@@ -71,7 +71,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
     };
 
     self.getUsername = (feed) => {
-        let name = self.usersIdHash[feed.author].fullname;
+        let name = (self.usersIdHash[feed.author].fullname? self.usersIdHash[feed.author].fullname : "No Author");
         if(name != "Twitter Bot")
             return name;
         return feed.extra.split("|")[1];
@@ -463,9 +463,23 @@ app.controller("MapController",function($scope){
                 position: wktToLatLng(wkt),
                 icon: "gpx/fuzzy_red.png"
             });
+            let referenceButton = new google.maps.InfoWindow({
+                content: `
+                    <div>
+                        <button onclick="referencePlace(${mark.getPosition().lat()}, ${mark.getPosition().lng()})">
+                            Reference in chat
+                        </button>
+                    </div>
+                    `
+            })
             google.maps.event.addListener(mark,"click",(function(a,m){return function(){
                 self.setHighlights(a);
                 self.highlightFuzzy(m);
+                referenceButton.open({
+                    anchor:mark,
+                    map: self.map,
+                    shouldFocus: false,
+                })
                 $scope.$apply();
             }})(vals,mark));
             self.fuzzyMarkers[wkt] = mark;
@@ -1089,7 +1103,7 @@ app.controller("HistoryListController",function($scope,$http){
     };
 
     self.getGeoCode = function(lat,lng,elem){
-        var url = "https://maps.googleapis.com/maps/api/geocode/json?latlng="+lat+","+lng+"&key=AIzaSyBimhjG_0l8cAvTHvMZHBK9KApFPGlLqwo";
+        var url = "https://maps.googleapis.com/maps/api/geocode/json?latlng="+lat+","+lng+"&key=AIzaSyA1f6WHaRzT4X3oh9t_VXFvmBcr3coP0sg";
         $http({url:url, method:"get"}).success(function(data){
             if(data.results[0] != null)
                 self.items[elem].geoloc = data.results[0]["formatted_address"];
@@ -1133,22 +1147,30 @@ app.controller("ChatController", function($scope, $http){
         $http.post("send-chat-msg", {msg: self.newMsg}).then(() => {
             self.updateChat();
             if (/^@bot/.test(self.newMsg)){
-                $http.post("ask-assistant", {msg:self.newMsg}).then(() => {
+                console.log(self.feeds);
+                $http.post("ask-assistant", {msg:self.newMsg, feeds: self.feeds}).then(() => {
                     self.updateChat();
                 }).catch((error) => {
-                    console.error("Error in sending bot message:", error);
+                    console.error("Error when sending bot message:", error);
                 });
             }
             self.newMsg = "";
         }).catch((error) => {
-            console.error("Error in sending chat message:", error);
+            console.error("Error when sending chat message:", error);
         });
     };
 
     self.shared.referenceMsg = (id) => {
         self.newMsg += " %M"+id+" ";
-        self.newMsg += "Place: "+getPlaceName(wktToLatLng(self.shared.hlcoords))+" ";
+        cordToAddress(wktToLatLng(self.shared.hlcoords)) 
+            .then((addr) => {
+                self.newMsg += addr;
+            }); 
     };
+
+    self.shared.referencePlace = (lat, lng) => {
+        self.newMsg += "{"+lat+","+lng+"}";
+    }
 
     init();
 
@@ -1166,21 +1188,32 @@ var wktToLatLng = function(a) {
     return new google.maps.LatLng(comps[1],comps[0]);
 };
 
-var getPlaceName = function(latlng) {
-    var geocoder = new google.maps.Geocoder();
-
-    geocoder.geocode({ location: latlng }, function(results, status) {
-        if (status === "OK") {
-            if (results[0]) {
-                return "Ubicación: "+results[0].formatted_address;
-            } else {
-                return "Sin ubicación disponible";
-            }
-        } else {
-            console.log("Geocoder failed due to: " + status);
-        }
-    });
+async function getPlace(latlng) {
+    try {
+        var msg = await cordToAddress(latlng);
+        return msg;
+    } catch (error) {
+        console.error(error);
+        return "Sin ubicación disponible";
+    }
 }
+
+function cordToAddress(latlng) {
+    var geocoder = new google.maps.Geocoder();
+    return new Promise(function(resolve, reject) {
+        geocoder.geocode({ location: latlng }, function(results, status) {
+            if (status === "OK") {
+                if (results[0]) {
+                    resolve("Ubicación: " + results[0].formatted_address);
+                } else {
+                    resolve("Sin ubicación disponible");
+                }
+            } else {
+                reject("Error al buscar localización: "+ status);
+            }
+        });
+    });
+};
 
 var getSortedKeys = function(obj){
     var arr = [];
