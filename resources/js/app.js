@@ -177,11 +177,19 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
     };
 
     self.highlightUnique = function(fid){
+        for (let feed of self.feeds) {
+            if (feed.id == fid) {feed.highlight = true;}
+            else {feed.highlight = false;}
+        }
         self.highlights = [fid];
         self.propagateHighlight(true);
     };
 
     self.setHighlights = function(arr){
+        for (let feed of self.feeds) {
+            if (arr.includes(feed.id)) {feed.highlight = true;}
+            else {feed.highlight = false;}
+        }
         self.highlights = arr;
         self.propagateHighlight();
     };
@@ -397,7 +405,7 @@ app.controller("GraphController", function($scope){
     self.shared.updateNetwork = self.updateNetwork;
 });
 
-app.controller("MapController",function($scope){
+app.controller("MapController",function($scope, $compile){
     var self = $scope;
     //self.mapProp = { center: {lat: -33, lng: -72 }, zoom: 12 };
     self.feedsMarkers = {};
@@ -456,6 +464,7 @@ app.controller("MapController",function($scope){
             }})(fid,fgeom));
             self.feedsMarkers[fid] = mark;
         }
+        const referenceButton = new google.maps.InfoWindow();
         for(var wkt in self.fuzzyPlaces){
             var vals = self.fuzzyPlaces[wkt];
             var mark = new google.maps.Marker({
@@ -463,23 +472,27 @@ app.controller("MapController",function($scope){
                 position: wktToLatLng(wkt),
                 icon: "gpx/fuzzy_red.png"
             });
-            let referenceButton = new google.maps.InfoWindow({
-                content: `
-                    <div>
-                        <button onclick="referencePlace(${mark.getPosition().lat()}, ${mark.getPosition().lng()})">
-                            Reference in chat
-                        </button>
-                    </div>
-                    `
-            })
+            (function (mark) {
+                mark.addListener("click", () => {
+                    let compHtml = $compile(`
+                        <div>
+                            <a ng-click="shared.referencePlace(${mark.getPosition().lng()}, ${mark.getPosition().lat()})" class="text-primary">
+                                Reference place in chat.
+                            </a>
+                        </div>
+                    `)(self);
+                    referenceButton.setContent(compHtml[0]);
+                    referenceButton.open({
+                        anchor:mark,
+                        map: self.map,
+                        shouldFocus: false,
+                    })
+                })
+            })(mark);
+
             google.maps.event.addListener(mark,"click",(function(a,m){return function(){
                 self.setHighlights(a);
                 self.highlightFuzzy(m);
-                referenceButton.open({
-                    anchor:mark,
-                    map: self.map,
-                    shouldFocus: false,
-                })
                 $scope.$apply();
             }})(vals,mark));
             self.fuzzyMarkers[wkt] = mark;
@@ -1169,6 +1182,7 @@ app.controller("ChatController", function($scope, $http){
     };
 
     self.shared.referencePlace = (lat, lng) => {
+        console.log("referencing place");
         self.newMsg += "{"+lat+","+lng+"}";
     }
 

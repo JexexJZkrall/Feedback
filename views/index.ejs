@@ -90,7 +90,7 @@
             </div>
             <hr/>
             <div class="simple-padding">
-                <div class="feed-box" ng-repeat="feed in feeds" ng-class="{highlight:(highlights.includes(feed.id))}" ng-click="highlightUnique(feed.id)">
+                <div class="feed-box" ng-repeat="feed in feeds | orderBy:'-highlight' track by feed.extra" ng-class="{highlight:(highlights.includes(feed.id))}" ng-click="highlightUnique(feed.id)">
                     <div class="row">
                         <span class="col-xs-6"><strong>{{getUsername(feed)}}</strong></span>
                         <span class="col-xs-6"><span class="pull-right gray">{{feed.time | date:'d-MM-yyyy HH:mm'}}</span></span>
