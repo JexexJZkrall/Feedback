@@ -132,22 +132,29 @@ var getTwtByWord = function(feeds, keyword){
 
 var getTwtByPlace = function(feeds, locations){
     console.log("using place tweets");
-    let cloc = locations.map(loc =>
-        loc.replace(/[{}]/g, "").replace(",", " ")       
-    );
-    let filteredFeed = feeds.filter(feed => {
-        let matches =
-          (feed.geom && cloc.some(location => feed.geom.includes(location))) ||
-          (feed.extra && cloc.some(location => feed.extra.includes(location)));
-      
-        return matches;
-    });
-    return filteredFeed;
+    if (locations instanceof Array){
+        let cloc = locations.map(loc =>
+            loc.replace(/[{}]/g, "").replace(",", " ")
+        );
+        let filteredFeed = feeds.filter(feed => {
+            let matches =
+              (feed.geom && cloc.some(location => feed.geom.includes(location))) ||
+              (feed.extra && cloc.some(location => feed.extra.includes(location)));
+          
+            return matches;
+        });
+        return filteredFeed;
+    } else {
+        let loc = locations.replace(/[{}]/g, "").replace(",", " ");
+        let filteredFeed = feeds.filter(feed => (feed.geom && feed.geom.includes(loc)) || (feed.extra && feed.extra.includes(loc)))
+        return filteredFeed;
+    }
 }
 
 const toolFuncs = {
     "getTwtByUser": getTwtByUser,
     "getTwtByWord": getTwtByWord,
+    "getTwtByPlace": getTwtByPlace,
 }
 
 module.exports.askAssistant = function(socket) {
@@ -186,6 +193,7 @@ module.exports.askAssistant = function(socket) {
                 saveBotMsg(response2.choices[0].message.content,ses);
                 socket.updChat();
             } else {
+                console.log(toolCall.function);
                 let args = JSON.parse(toolCall.function.arguments);
                 let argValue = Object.values(args)[0];
                 console.log(argValue);
