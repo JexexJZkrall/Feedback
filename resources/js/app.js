@@ -1133,11 +1133,12 @@ app.controller("HistoryListController",function($scope,$http){
     self.createItems();
 });
 
-app.controller("ChatController", function($scope, $http){
+app.controller("ChatController", function($scope, $http, $timeout){
     let self = $scope;
 
     self.chatMsgs = [];
     self.newMsg = "";
+    self.isThinking = false;
 
     let init = () => {
         self.updateChat();
@@ -1147,7 +1148,7 @@ app.controller("ChatController", function($scope, $http){
     };
 
     self.updateChat = () => {
-        $http.post("get-chat").then((response) => {
+        return $http.post("get-chat").then((response) => {
             self.chatMsgs = response.data.map(e => {
                 e.prettyContent = self.shared.prettyPrintFeed(e.content, null);
                 return e;
@@ -1157,20 +1158,54 @@ app.controller("ChatController", function($scope, $http){
 
     self.sendChatMsg = () => {
         if(self.newMsg == null || self.newMsg === "") return;
-        $http.post("send-chat-msg", {msg: self.newMsg}).then(() => {
-            self.updateChat();
-            if (/^@bot/.test(self.newMsg)){
-                console.log(self.feeds);
-                $http.post("ask-assistant", {msg:self.newMsg, feeds: self.feeds}).then(() => {
-                    self.updateChat();
-                }).catch((error) => {
-                    console.error("Error when sending bot message:", error);
-                });
-            }
-            self.newMsg = "";
-        }).catch((error) => {
-            console.error("Error when sending chat message:", error);
-        });
+        $http.post("send-chat-msg", {msg: self.newMsg})
+            .then(() => {
+                return self.updateChat()
+                    .then(() => {
+                        setTimeout(() => {
+                            self.autoScroll();
+                        },0);
+                    });
+            }, error => {
+                console.error("Error sending user msg", error);
+            })
+            .then(() => {
+                if (/^@bot/.test(self.newMsg)){
+                    return $http.post("ask-assistant", {msg:self.newMsg, feeds: self.feeds})
+                        .then(() => {
+                            //$timeout(function() {
+                            return self.updateChat()
+                                .then(() => {
+                                    setTimeout(() => {
+                                        self.autoScroll();
+                                    },0);
+                                });
+                            //}, 0);
+                        }, error => {
+                            console.log("Error with assistant", error);
+                        })
+                }
+                self.newMsg ="";
+            })
+            .catch((error) => {
+                console.error("Chat error:", error);
+            });
+    };
+
+    self.autoScroll = function () {
+        const messageBox = document.querySelector(".chat-container");
+
+        const newMsg = messageBox.lastElementChild;
+        const newMsgStyle = getComputedStyle(newMsg);
+        const newMsgMargin = parseInt(newMsgStyle.marginBottom);
+        const newMsgHeight = newMsg.offsetHeight + newMsgMargin;
+        const visibleHeight = messageBox.offsetHeight;
+        const containerHeight = messageBox.scrollHeight;
+        const scrollOffset = messageBox.scrollTop + visibleHeight;
+
+        if (containerHeight - newMsgHeight <= scrollOffset) {
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
     };
 
     self.shared.referenceMsg = (id) => {
@@ -1182,7 +1217,6 @@ app.controller("ChatController", function($scope, $http){
     };
 
     self.shared.referencePlace = (lat, lng) => {
-        console.log("referencing place");
         self.newMsg += "{"+lat+","+lng+"}";
     }
 
