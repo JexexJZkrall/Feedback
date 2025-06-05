@@ -237,8 +237,6 @@ app.post("/add-ses-users", function(req,res){
     }
     var users = req.body.users;
     var sesid = req.body.sesid;
-    console.log(users);
-    console.log(sesid);
     for(var i=0; i<users.length; i++){
         addSesUser(users[i],sesid);
     }

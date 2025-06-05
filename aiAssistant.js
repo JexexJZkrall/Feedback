@@ -63,7 +63,7 @@ const tools = [
         "type": "function",
         "function": {
             "name": "getTwtByUser",
-            "description": "Get all tweets made by a specific user or users",
+            "description": "Get all tweets made by a specific user or list of users",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -72,7 +72,7 @@ const tools = [
                         "items": {
                             "type": "string",
                         },
-                        "description": "a list of twitter usernames e.g. @markus_es, you must include the @"
+                        "description": "a list of twitter usernames e.g. @markus_es, you must include the @ if it doesnt have it"
                     }
                 },
                 "required": ["username"],

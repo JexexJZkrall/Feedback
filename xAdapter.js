@@ -5,6 +5,10 @@ var twSecret = require("./passwords.js")("twSecret");
 var conString = require("./passwords.js")("conString");
 var twCount = require("./passwords")("twCount");
 
+const apiKey = require("./passwords.js")("twApiIoKey"); 
+const endpoint = "https://api.twitterapi.io/twitter/tweet/advanced_search";
+const fs = require("fs");
+
 const client = new TwitterApi(twConfig["bearer_token"]);
 const rClient = client.readOnly;
 var id_tb = 3;
@@ -14,6 +18,7 @@ var id_tb = 3;
  * @param req Request object from middleware
  * @param res Response object from middleware
  */
+/*
 module.exports.tweetsAsFeeds = function(socket){
     return function(req, res){
         var data = req.body;
@@ -53,6 +58,39 @@ module.exports.tweetsAsFeeds = function(socket){
         storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
     }
 };
+*/
+module.exports.tweetsAsFeeds = function(socket){
+    return function(req, res){
+        var data = req.body;
+        if(req.session.uid==null || data["text"]==null || data["text"]=="" || data["geo"]==null || data["geo"]=="" || data["secret"]!=twSecret){
+            res.end("[]");
+            return;
+        }
+        var twOptions = {
+            q: data["text"],
+            count: twCount,
+            geocode: data["geo"]
+        };
+        var inow = ""+(+Date.now());
+        fetchTweets(twOptions["q"], twOptions["geocode"])
+            .then(function(tweets){
+                let arr = tweets.map(adapterTweetToFeed(twOptions.geocode,inow))
+                for(var i=0; i<arr.length; i++){
+                    addDBTweet(arr[i], req.session.ses);
+                }
+                res.end(JSON.stringify(arr));
+                socket.updMsg();
+            })
+            .catch(err => {
+                console.log("Error fetching tweets: ",err);
+                res.end("[]");
+                return;
+            });
+        var searchContent = {type: "t", time: inow, options: twOptions};
+        storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
+    }
+};
+
 
 
 module.exports.trendings = function(req, res){
@@ -105,11 +143,53 @@ module.exports.userTweets = function(req, res){
     storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
 };
 
+async function fetchTweets(query, geo) {
+    try {
+        let allTweets = [];
+        cursor = null;
+        pageCount = 0;
+        do{
+            const params = new URLSearchParams({query: query, geocode: geo});
+            if (cursor) {
+                params.append("cursor", cursor);
+            }
+            const response = await fetch(`${endpoint}?${params.toString()}`, {
+                method: "GET",
+                headers: {"x-api-key": apiKey}
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.tweets && data.tweets.length > 0) {
+                if(allTweets.length == 0){
+                    allTweets = data.tweets;
+                } else {
+                    allTweets = allTweets.concat(data.tweets);
+                }
+            } else {
+                console.log("No tweets found.");
+            }
+            if (data.next_cursor) {
+                cursor = data.next_cursor;
+                pageCount++;
+            } else {
+                cursor = null;
+                console.log("No more pages.");
+            }
+        } while (cursor && pageCount < 5);
+        return allTweets;  
+    } catch (error) {
+        console.error("Error fetching tweets:", error);
+    }
+}
+
 /**
  * Converts a tweet object to a feed object
  * @param gc geocode to be used as extra
  * @return Function - The function to wrap the feed object that represent the tweet
  */
+/*
 var adapterTweetToFeed = function(gc,inow,response){
     var ss = "";
     if(gc!=null)
@@ -133,6 +213,29 @@ var adapterTweetToFeed = function(gc,inow,response){
             descr: tweet.text.replace("\n", ""),
             author: id_tb,
             time: +(new Date(tweet.created_at)),
+            geom: geoloc,
+            parentfeed: -1,
+            extra: tweet.id + "|@" + username + ((ss!="")?"|":"") + ss + "|" + inow
+        };
+    };
+};
+*/
+
+var adapterTweetToFeed = function(gc,inow){
+    var ss = "";
+    if(gc!=null)
+        ss = wktFromCoords(gc.split(",")[1],gc.split(",")[0]);
+    return function(tweet,i){
+        geoloc = null;
+        var username = null;
+        if(tweet.author){
+            username = tweet.author.userName;
+        }
+        return {
+            id: +(tweet.id),
+            descr: tweet.text.replace("\n", ""),
+            author: id_tb,
+            time: +(new Date(tweet.createdAt)),
             geom: geoloc,
             parentfeed: -1,
             extra: tweet.id + "|@" + username + ((ss!="")?"|":"") + ss + "|" + inow
