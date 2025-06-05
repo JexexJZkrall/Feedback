@@ -18,6 +18,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
     self.hlist = [];
     self.twitterEnabled = false;
     self.historyOpened = false;
+    self.feedsOpened = false;
     self.chatOpened = false;
 
     self.updateFeeds = function(){
@@ -245,6 +246,10 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
     self.toggleHistory = function(){
         self.historyOpened = !self.historyOpened;
     };
+
+    self.toggleFeeds = function(){
+        self.feedsOpened = !self.feedsOpened;
+    }
 
     self.orderHistory = function(hobj){
         //console.log(hobj);
@@ -1006,6 +1011,7 @@ app.controller("TwitterController",function($scope,$http,params){
                 self.waiting = false;
                 self.master.shared.mapPanTo(self.location);
                 self.master.getHistorySearches();
+                self.feedsOpened = true;
                 self.$close();
             });
         }
@@ -1158,7 +1164,9 @@ app.controller("ChatController", function($scope, $http, $timeout){
 
     self.sendChatMsg = () => {
         if(self.newMsg == null || self.newMsg === "") return;
-        $http.post("send-chat-msg", {msg: self.newMsg})
+        let msg = self.newMsg;
+        self.newMsg = null;
+        $http.post("send-chat-msg", {msg:msg})
             .then(() => {
                 return self.updateChat()
                     .then(() => {
@@ -1170,8 +1178,8 @@ app.controller("ChatController", function($scope, $http, $timeout){
                 console.error("Error sending user msg", error);
             })
             .then(() => {
-                if (/^@bot/.test(self.newMsg)){
-                    return $http.post("ask-assistant", {msg:self.newMsg, feeds: self.feeds})
+                if (/^@bot/.test(msg)){
+                    return $http.post("ask-assistant", {msg:msg, feeds: self.feeds})
                         .then(() => {
                             //$timeout(function() {
                             return self.updateChat()
@@ -1185,11 +1193,11 @@ app.controller("ChatController", function($scope, $http, $timeout){
                             console.log("Error with assistant", error);
                         })
                 }
-                self.newMsg ="";
             })
             .catch((error) => {
                 console.error("Chat error:", error);
             });
+        self.autoScroll();
     };
 
     self.autoScroll = function () {

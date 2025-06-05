@@ -39,6 +39,7 @@
                     <button class="btn btn-default" ng-show="twitterEnabled" ng-click="openTwitterModal()"><i class="fa fa-twitter"></i></button>
                     <button class="btn btn-default" ng-show="twitterEnabled" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"></i></button>
                     <button class="btn btn-default" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i></button>
+                    <button class="btn btn-default" ng-click="toggleFeeds()" ><i class="fa fa-comments-o"></i></button>
                     <button class="btn btn-default" ng-click="simpleSearch()"><i class="fa fa-search"></i></button>
                 </span>
             </div>
@@ -52,6 +53,7 @@
                   <li role="menuitem" ng-show="twitterEnabled"><a ng-click="openTwitterModal()">Import from Twitter</a></li>
                   <li role="menuitem" ng-show="twitterEnabled"><a ng-click="getHistorySearches()">View Search History</a></li>
                   <li role="menuitem"><a ng-click="openDisChat()">Discussion Chat</a></li>
+                  <li role="menuitem"><a ng-click="toggleFeeds()">Feed</a></li>
                   <li role="menuitem"><a href="seslist">Change Session</a></li>
                   <li role="menuitem"><a href="logout">Log out</a></li>
               </ul>
@@ -77,7 +79,7 @@
             </div>
         </div>
         <div class="full-height scrollable no-padding-right resizable-hor" ng-class="{'col-sm-3':historyOpened && !chatOpened || !historyOpened && chatOpened,
-                    'col-sm-4':!historyOpened && !chatOpened, 'col-sm-2': historyOpened && chatOpened}">
+                    'col-sm-4':!historyOpened && !chatOpened, 'col-sm-2': historyOpened && chatOpened}" ng-show="feedsOpened">
             <div class="simple-padding" ng-controller="NewFeedController">
                 <span class="label label-primary over-right" ng-class="{'label-danger':newFeed.com.length>140}">{{newFeed.com.length}}</span>
                 <textarea id="new-feed-box" class="form-control" rows="3" ng-model="newFeed.com"></textarea>
@@ -106,8 +108,8 @@
                 </div>
             </div>
         </div>
-        <div class="full-height" ng-class="{'col-sm-7':historyOpened && !chatOpened || !historyOpened && chatOpened,
-            'col-sm-8':!historyOpened && !chatOpened, 'col-sm-6': historyOpened && chatOpened}">
+        <div class="full-height" ng-class="{'col-sm-12':!historyOpened && !chatOpened && !feedsOpened,'col-sm-7':historyOpened && !chatOpened || !historyOpened && chatOpened,
+            'col-sm-8':!historyOpened && !chatOpened && feedsOpened, 'col-sm-6': historyOpened && chatOpened}">
             <div class="mid-height resizable-ver" ng-controller="MapController">
                 <div id="map"></div>
                 <a class="map-btn absolute-right" ng-click="setMapDrawingMode(true)">
@@ -131,7 +133,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-2 full-height padding-0 resizable-hor" ng-show="chatOpened" ng-controller="ChatController">
+        <div ng-class="{'col-sm-2 full-height padding-0 resizable-hor': feedsOpened || historyOpened, 'col-sm-5 full-height padding-0 resizable-hor': !feedsOpened && !historyOpened}" ng-show="chatOpened" ng-controller="ChatController">
             <h4 class="chat-header"><i class="fa fa-comments"></i> Discussion Chat</h4>
             <div class="chat-container scrollable" id="chatbox">
                 <div class="chat-box" ng-repeat="chat in chatMsgs">
