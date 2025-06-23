@@ -1139,7 +1139,7 @@ app.controller("HistoryListController",function($scope,$http){
     self.createItems();
 });
 
-app.controller("ChatController", function($scope, $http, $timeout){
+app.controller("ChatController", function($scope, $http, $timeout, $sce){
     let self = $scope;
 
     self.chatMsgs = [];
@@ -1156,7 +1156,13 @@ app.controller("ChatController", function($scope, $http, $timeout){
     self.updateChat = () => {
         return $http.post("get-chat").then((response) => {
             self.chatMsgs = response.data.map(e => {
-                e.prettyContent = self.shared.prettyPrintFeed(e.content, null);
+                if (e.author == "chat bot"){
+                    let html = marked.parse(e.content);
+                    let trusted = $sce.trustAsHtml(html);
+                    e.prettyContent = trusted;
+                }else{
+                    e.prettyContent = self.shared.prettyPrintFeed(e.content, null);
+                }
                 return e;
             });
         });
@@ -1181,14 +1187,12 @@ app.controller("ChatController", function($scope, $http, $timeout){
                 if (/^@bot/.test(msg)){
                     return $http.post("ask-assistant", {msg:msg, feeds: self.feeds})
                         .then(() => {
-                            //$timeout(function() {
                             return self.updateChat()
                                 .then(() => {
                                     setTimeout(() => {
                                         self.autoScroll();
                                     },0);
                                 });
-                            //}, 0);
                         }, error => {
                             console.log("Error with assistant", error);
                         })
