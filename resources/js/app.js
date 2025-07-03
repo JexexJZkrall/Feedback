@@ -1,7 +1,7 @@
 var app = angular.module("Feedback",["ui.bootstrap"]);
 
 var socket = io("saduewa.dcc.uchile.cl:8888/Feedback");
-//var socket = io("localhost:8502");
+//var socket = io("http://localhost:8502");
 
 app.controller("FeedbackController",function($scope,$http,$uibModal){
     var self = $scope;
@@ -1140,11 +1140,12 @@ app.controller("HistoryListController",function($scope,$http){
 });
 
 app.controller("ChatController", function($scope, $http, $timeout, $sce){
-    let self = $scope;
+    var self = $scope;
 
     self.chatMsgs = [];
     self.newMsg = "";
     self.isThinking = false;
+    self.modes = {"chat":["",true], "insight":["",false], "sentiment":["",false], "posture":["",false]};
 
     let init = () => {
         self.updateChat();
@@ -1204,7 +1205,30 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
         self.autoScroll();
     };
 
-    self.autoScroll = function () {
+    self.getInfo = (whatInfo) => {
+        self.modes[whatInfo][0] = "";
+        $http.post("get-info", {feeds: self.feeds, mode: whatInfo})
+    }
+
+    self.changeChat = (newMode) => {
+        for (mode in self.modes){
+            if (mode != newMode) {
+                self.modes[mode][1] = false;
+            }else{
+                self.modes[mode][1] = true;
+            }
+        }
+    }
+
+    socket.on("info", (whatInfo, info) => {
+        self.$evalAsync(function() {
+            let html = marked.parse(info);
+            let trusted = $sce.trustAsHtml(html);
+            self.modes[whatInfo] = [trusted, self.modes[whatInfo][1]];
+        })
+    });
+
+    self.autoScroll = () => {
         const messageBox = document.querySelector(".chat-container");
 
         const newMsg = messageBox.lastElementChild;

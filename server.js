@@ -281,6 +281,7 @@ app.post("/send-chat-msg", rpg.execSQL({
 }));
 
 app.post("/ask-assistant", aiAdpt.askAssistant(socket));
+app.post("/get-info", aiAdpt.askAnalysis(socket));
 
 function addSesUser(uid,ses){
     var sql = "insert into sesusers(sesid,uid) values ($1,$2)";

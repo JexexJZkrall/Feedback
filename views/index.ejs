@@ -33,15 +33,15 @@
             <div class="input-group" ng-controller="SearchController">
                 <input type="text" class="form-control" ng-model="simpleSearchBox" ng-keypress="($event.which === 13)?simpleSearch():0"/>
                 <span class="input-group-btn">
+                    <button class="btn btn-default" ng-click="simpleSearch()"><i class="fa fa-search"></i></button>
                     <button class="btn btn-default" ng-click="restoreFeeds()"><i class="fa fa-times"></i></button>
                     <button class="btn btn-default" uib-popover-template="'templ/popover_search.html'" popover-placement="bottom-right" popover-is-open="advSearchOpen" ng-click="openAdvSearch()">
                         <i class="fa fa-sliders"></i>
                     </button>
                     <button class="btn btn-default" ng-show="twitterEnabled" ng-click="openTwitterModal()"><i class="fa fa-twitter"></i></button>
                     <button class="btn btn-default" ng-show="twitterEnabled" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"></i></button>
+                    <button class="btn btn-default" ng-click="toggleFeeds()" ng-class="{'active':feedsOpened}"><i class="fa fa-comments-o"></i></button>
                     <button class="btn btn-default" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i></button>
-                    <button class="btn btn-default" ng-click="toggleFeeds()" ><i class="fa fa-comments-o"></i></button>
-                    <button class="btn btn-default" ng-click="simpleSearch()"><i class="fa fa-search"></i></button>
                 </span>
             </div>
         </div>
@@ -134,25 +134,56 @@
                 </div>
             </div>
         </div>
-        <div ng-class="{'col-sm-2 full-height padding-0 resizable-hor': feedsOpened || historyOpened, 'col-sm-5 full-height padding-0 resizable-hor': !feedsOpened && !historyOpened}" ng-show="chatOpened" ng-controller="ChatController">
-            <h4 class="chat-header"><i class="fa fa-comments"></i> Discussion Chat</h4>
-            <div class="chat-container scrollable" id="chatbox">
-                <div class="chat-box" ng-repeat="chat in chatMsgs">
-                    <div ng-if="chat.isThinking">
-                        <strong ng-bind="chat.author"></strong>
-                        Thinking...
-                    </div>
-                    <div ng-if="!chat.isThinking">
-                        <strong ng-bind="chat.author"></strong>
-                        <p bind-html-compile="chat.prettyContent"></p>
-                    </div>
-                </div>                
+        <div ng-class="{'col-sm-2 full-height padding-0 resizable-hor': feedsOpened || historyOpened,
+             'col-sm-5 full-height padding-0 resizable-hor': !feedsOpened && !historyOpened}" ng-show="chatOpened" ng-controller="ChatController">
+            <div>
+                <button ng-click="changeChat('chat')">Discussion</button>
+                <button ng-click="changeChat('insight')">Insight</button>
+                <button ng-click="changeChat('sentiment')">Sentiment</button>
+                <button ng-click="changeChat('posture')">Posture</button>
             </div>
-            <div class="input-group chat-input">
-                <textarea class="form-control" ng-model="newMsg"></textarea>
-                <a class="input-group-addon btn btn-default" ng-click="sendChatMsg()">
-                    <i class="fa fa-send"></i>
-                </a>
+            <div class = "full-height" ng-show="modes['chat'][1]">
+                <h4 class="chat-header"><i class="fa fa-comments"></i> Discussion Chat</h4>
+                <div class="chat-container scrollable" id="chatbox">
+                    <div class="chat-box" ng-repeat="chat in chatMsgs">
+                        <div ng-if="chat.isThinking">
+                            <strong ng-bind="chat.author"></strong>
+                            Thinking...
+                        </div>
+                        <div ng-if="!chat.isThinking">
+                            <strong ng-bind="chat.author"></strong>
+                            <p bind-html-compile="chat.prettyContent"></p>
+                        </div>
+                    </div>                
+                </div>
+                <div class="input-group chat-input">
+                    <textarea class="form-control" ng-model="newMsg"></textarea>
+                    <a class="input-group-addon btn btn-default" ng-click="sendChatMsg()">
+                        <i class="fa fa-send"></i>
+                    </a>
+                </div>
+            </div>
+            <div class = "full-height" ng-show="modes['insight'][1]">
+                <h4 class="chat-header">Insights</h4>
+                <button ng-click="getInfo('insight')">Get Insights</button>
+                <div class="chat-container scrollable">
+                    <div bind-html-compile="'<b>Hello <i>world</i></b>'"></div>
+                    <p bind-html-compile="modes['insight'][0]"></p>
+                </div>
+            </div>
+            <div class = "full-height" ng-show="modes['sentiment'][1]">
+                <h4 class="chat-header">Sentiments</h4>
+                <button ng-click="getInfo('sentiment')">Get Sentiments</button>
+                <div class="chat-container scrollable">
+                    <p bind-html-compile="modes['sentiment'][0]"></p>
+                </div>
+            </div>
+            <div class = "full-height" ng-show="modes['posture'][1]">
+                <h4 class="chat-header">Postures</h4>
+                <button ng-click="getInfo('posture')">Get Postures</button>
+                <div class="chat-container scrollable">
+                    <p bind-html-compile="modes['posture'][0]"></p>
+                </div>
             </div>
         </div>
     </div>

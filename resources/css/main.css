@@ -14,6 +14,7 @@ body{
     margin: 0;
     height: 100%;
     background-color: #e0e0e0;
+    overflow: hidden;
 }
 
 a{
@@ -278,6 +279,7 @@ a.map-btn {
 
 .chat-container{
     height: calc(100% - 84px);
+    overflow-y: auto;
     overflow: auto;
 }
 
