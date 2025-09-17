@@ -15,13 +15,16 @@
 </head>
 <body class="bg-green">
 
-<div class="container" ng-controller="SesListController">
+<div class="sessions-container" ng-controller="SesListController">
 
-    <a href="logout" class="pull-right btn btn-default" style="margin-top: 8px">Logout</a>
-    <h2>Select a session to start</h2>
-    <hr/>
-    <button class="btn btn-success form-control" ng-click="toggleOpen()"><i class="fa fa-plus"></i> Add New Session</button>
-    <br/>
+    <div>
+        <a href="logout" class="pull-right btn btn-default" style="margin-top: 8px">Logout</a>
+        <h2>Select a session to start</h2>
+        <hr/>
+        <button class="btn btn-success form-control" ng-click="toggleOpen()"><i class="fa fa-plus"></i> Add New Session</button>
+        <br/>
+    </div>
+    
     <div ng-show="newsesopen">
         <br/>
         <div>
@@ -37,9 +40,12 @@
     <hr/>
     <br/>
     <input class="form-control" ng-model="sesSearch" ng-show="!newsesopen" placeholder="Search...">
-    <div class="list-group">
+    <div class="list-group session-list">
         <a href="./set-session?ses={{ses.id}}" class="list-group-item" ng-repeat="ses in sessions | filter:sesSearch">
-            <button class="btn btn-default pull-right" ng-click="openUsers(ses.id,$event)">
+            <button class="btn btn-danger spatiated-hz pull-right" ng-if="ses.creator == activeUser.id" ng-click="confirmDeleteSession(ses,$event)">
+                <i class="fa fa-remove"></i> Delete
+            </button>
+            <button class="btn btn-info spatiated-hz pull-right" ng-click="openUsers(ses.id,$event)">
                 <i class="fa fa-users"></i> Users
             </button>
             <h4 class="list-group-item-heading">{{ses.name}}</h4>

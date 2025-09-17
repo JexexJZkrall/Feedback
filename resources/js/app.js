@@ -1,9 +1,11 @@
+//const { response } = require("../../server");
+
 var app = angular.module("Feedback",["ui.bootstrap"]);
 
 var socket = io("saduewa.dcc.uchile.cl:8888/Feedback");
 //var socket = io("http://localhost:8502");
 
-app.controller("FeedbackController",function($scope,$http,$uibModal){
+app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
     var self = $scope;
     self.shared = {};
 
@@ -17,13 +19,12 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
     self.highlights = [];
     self.hlist = [];
     self.twitterEnabled = false;
-    self.historyOpened = false;
     self.feedsOpened = false;
     self.chatOpened = false;
 
     self.updateFeeds = function(){
-        $http({url: "feed-list", method: "post"}).success(function(data){
-            self.feeds = data;
+        $http({url: "feed-list", method: "post"}).then(function(response){
+            self.feeds = response.data;
             self.tagMap = {};
             self.fuzzyPlaces = {};
             for(var i = 0; i < self.feeds.length; i++){
@@ -55,14 +56,15 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
 
     self.restoreFeeds = function(){
         self.highlights = [];
-        if(self.feeds == self.rawfeeds) return;
+        //if(self.feeds == self.rawfeeds) return;
         self.setFeeds(self.rawfeeds);
         self.shared.quitMarker();
+        self.removeHighlights();
     };
 
     self.updateUsers = function(){
-        $http({url: "member-list", method: "post"}).success(function(data){
-            self.users = data;
+        $http({url: "member-list", method: "post"}).then(function(response){
+            self.users = response.data;
             for(var i=0; i<self.users.length; i++){
                 self.usersIdHash[self.users[i].id] = self.users[i];
                 if(self.users[i].id == 3)
@@ -72,7 +74,13 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
     };
 
     self.getUsername = (feed) => {
-        let name = (self.usersIdHash[feed.author].fullname? self.usersIdHash[feed.author].fullname : "No Author");
+        let name;
+        if (self.usersIdHash[feed.author] && self.usersIdHash[feed.author].fullname){
+            name = self.usersIdHash[feed.author].fullname;
+        } else {
+            name = "No author";
+        }
+        //let name = (self.usersIdHash[feed.author].fullname? self.usersIdHash[feed.author].fullname : "No Author");
         if(name != "Twitter Bot")
             return name;
         return feed.extra.split("|")[1];
@@ -171,8 +179,15 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
             if (isSubstring(lcont, self.feeds[i].prettyText) ||
                 isSubstring(lcont, self.usersIdHash[self.feeds[i].author].fullname) ||
                 isSubstring(lcont, self.feeds[i].extra)){
+                self.feeds[i].highlight  = true;
                 self.highlights.push(self.feeds[i].id);
+            } else {
+                self.feeds[i].highlight = false;
             }
+        }
+        if (self.highlights.length < 1) {
+            self.removeHighlights();
+            return;
         }
         self.propagateHighlight();
     };
@@ -202,6 +217,17 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
             let c = $(".feed-box.highlight");
             if(c.length > 0) c[0].scrollIntoView();
         },100);
+    };
+
+    self.removeHighlights = function(){
+        $timeout(() => {
+            for (let feed of self.feeds){
+                feed.highlight = false;
+            }
+            self.highlights = [];
+            self.shared.unhighlightMarkers();
+            self.shared.unhighlightNodes();
+        });
     };
 
     self.countFeedsContent = function(content) {
@@ -237,40 +263,40 @@ app.controller("FeedbackController",function($scope,$http,$uibModal){
         });
     };
 
-    self.getHistorySearches = function(){
-        $http({url: "history-list", method: "post"}).success(function(data){
-            self.shared.updateHistory(data);
-        });
-    };
+    self.openHistoryModal = function(data){
+        $uibModal.open({
+            templateUrl: "templ/modal_history.html",
+            controller: "HistoryListController",
+            resolve: {
+                params: function(){
+                    return {
+                        data: data,
+                        countFeeds: self.countFeedsContent.bind(self),
+                        twtMod: self.openTwitterModal.bind(self),
+                    }
+                }
+            }
+        })
+    }
 
-    self.toggleHistory = function(){
-        self.historyOpened = !self.historyOpened;
+    self.getHistorySearches = function(){
+        $http({url: "history-list", method: "post"}).then(function(response){
+            self.openHistoryModal(response.data);
+        });
     };
 
     self.toggleFeeds = function(){
         self.feedsOpened = !self.feedsOpened;
     }
 
-    self.orderHistory = function(hobj){
-        //console.log(hobj);
-        var arr = [];
-        for(var k in hobj){
-            arr.push(hobj[k]);
-        }
-        return arr.sort(function(a,b){
-            if(a.dates == null) return -1;
-            if(b.dates == null) return 1;
-            return - parseInt(a.dates[a.dates.length-1].date) + parseInt(b.dates[b.dates.length-1].date);
-        });
-    };
 
     self.openDisChat = () => {
         self.chatOpened = !self.chatOpened;
     };
 
     self.getSesInfo = function(){
-        $http.post("get-ses-info").success((data) => {
-            self.sesinfo = data;
+        $http.post("get-ses-info").then((response) => {
+            self.sesinfo = response.data;
         });
     };
 
@@ -406,6 +432,10 @@ app.controller("GraphController", function($scope){
         self.network.selectNodes(self.highlights);
     };
 
+    self.shared.unhighlightNodes = function(){
+        self.network.unselectAll();
+    }
+
     self.updateNetwork();
     self.shared.updateNetwork = self.updateNetwork;
 });
@@ -415,13 +445,44 @@ app.controller("MapController",function($scope, $compile){
     //self.mapProp = { center: {lat: -33, lng: -72 }, zoom: 12 };
     self.feedsMarkers = {};
     self.fuzzyMarkers = {};
+    self.drawingMode = false;
 
     self.init = function(){
         self.map = new google.maps.Map($("#map")[0],{
             center: new google.maps.LatLng(-33, -70),
-            zoom: 1
+            zoom: 1,
+            zoomControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            mapId: "map_id_1",
         });
 
+        let control = document.getElementById("mapctrl");
+        let markbutton = document.getElementById("markbtn");
+        self.map.controls[google.maps.ControlPosition.TOP_RIGHT].push(control);
+
+        markbutton.addEventListener("click", () => {
+            self.drawingMode = !self.drawingMode;
+            self.map.setOptions({
+                draggableCursor: self.drawingMode ? "crosshair" : "grab",
+            });
+            markbutton.textContent = self.drawingMode ? "Click in map to place" : "Place marker";
+        })
+
+        self.map.addListener("click", (event) => {
+            if (!self.drawingMode) {
+                self.removeHighlights();
+                return;
+            }
+            self.map.setOptions({
+                draggableCursor: "grab",
+            });
+            let lng = ((event.latLng.lng() + 180) % 360 + 360) % 360 - 180;
+            let lat = Math.max(-85, Math.min(85, event.latLng.lat()));
+            self.createNewMarker(lat,lng,self.map);
+            markbutton.textContent = "Place marker";
+        })
+        /*
         self.drawingManager = new google.maps.drawing.DrawingManager({
             drawingControl: true,
             drawingControlOptions: {
@@ -434,20 +495,55 @@ app.controller("MapController",function($scope, $compile){
                 icon: "gpx/mbluefx.png"
             }
         });
+        
         self.drawingManager.setMap(self.map);
         google.maps.event.addListener(self.drawingManager,'overlaycomplete',self.overlayHandler);
+        */
         self.setLoctionMapCenter();
         self.createLocationButton();
         self.createFitDataButton();
         self.initSearchBox();
     };
-
+    /*
     self.overlayHandler = function(event){
         if(self.shared.newMarker!=null)
             self.shared.newMarker.setMap(null);
         self.shared.newMarker = event.overlay;
         self.setMapDrawingMode(false);
     };
+    */
+
+    self.createNewMarker = function(lat, lng, map){
+        self.drawingMode = false;
+        if (self.shared.newMarker != null){
+            self.shared.newMarker.map = null;
+        }
+        let infoWindow = new google.maps.InfoWindow({content: '<div> <button id="delete-marker">Delete</button> </div>'});
+        let mrkIcon = document.createElement("img");
+        mrkIcon.src = "gpx/mbluefx.png";
+        mrkIcon.style.width = "32px";
+        mrkIcon.style.height = "32px";
+        let marker = new google.maps.marker.AdvancedMarkerElement({
+            position: new google.maps.LatLng(lat,lng),
+            map: map,
+            content: mrkIcon,
+            gmpClickable: true,
+        })
+        self.shared.newMarker = marker;
+        marker.addListener("click", () => {
+            infoWindow.open(marker.map, marker);
+            google.maps.event.addListenerOnce(infoWindow, "domready", () => {
+                let deleteMrkBtn = document.getElementById("delete-marker");
+                if (deleteMrkBtn) {
+                    deleteMrkBtn.addEventListener("click", () => {
+                        marker.setMap(null);
+                        self.shared.newMarker = null;
+                        infoWindow.close();
+                    })
+                }
+            })
+        })
+    }
 
     self.updateMap = function(){
         let empty = Object.keys(self.fuzzyMarkers).length == 0 && Object.keys(self.feedsMarkers).length == 0;
@@ -457,31 +553,40 @@ app.controller("MapController",function($scope, $compile){
             var fgeom = self.feeds[i].geom;
             var fid = self.feeds[i].id;
             if(fgeom==null) continue;
-            var mark = new google.maps.Marker({
+            let mrkIcon = document.createElement("img");
+            mrkIcon.src = "gpx/mredfx.png";
+            mrkIcon.style.width = "32px";
+            mrkIcon.style.height = "32px";
+            var mark = new google.maps.marker.AdvancedMarkerElement({
                 map: self.map,
                 position: wktToLatLng(fgeom),
-                icon: "gpx/mredfx.png"
+                content: mrkIcon,
             });
-            google.maps.event.addListener(mark,"click",(function(a,b){return function(){
+            mark.addListener("gmp-click",(function(a,b){return function(){
                 self.highlightUnique(a);
                 self.map.panTo(wktToLatLng(b));
                 $scope.$apply();
             }})(fid,fgeom));
             self.feedsMarkers[fid] = mark;
         }
-        const referenceButton = new google.maps.InfoWindow();
+        //const referenceButton = new google.maps.InfoWindow();
         for(var wkt in self.fuzzyPlaces){
             var vals = self.fuzzyPlaces[wkt];
-            var mark = new google.maps.Marker({
+            let mrkIcon = document.createElement("img");
+            mrkIcon.src = "gpx/fuzzy_red.png";
+            mrkIcon.style.width = "32px";
+            mrkIcon.style.height = "32px";
+            var mark = new google.maps.marker.AdvancedMarkerElement({
                 map: self.map,
                 position: wktToLatLng(wkt),
-                icon: "gpx/fuzzy_red.png"
+                content: mrkIcon,
             });
+            /*
             (function (mark) {
-                mark.addListener("click", () => {
+                mark.addListener("gmp-click", () => {
                     let compHtml = $compile(`
                         <div>
-                            <a ng-click="shared.referencePlace(${mark.getPosition().lng()}, ${mark.getPosition().lat()})" class="text-primary">
+                            <a ng-click="shared.referencePlace(${mark.position.lng}, ${mark.position.lat})" class="text-primary">
                                 Reference place in chat.
                             </a>
                         </div>
@@ -494,8 +599,9 @@ app.controller("MapController",function($scope, $compile){
                     })
                 })
             })(mark);
+            */
 
-            google.maps.event.addListener(mark,"click",(function(a,m){return function(){
+            mark.addListener("click",(function(a,m){return function(){
                 self.setHighlights(a);
                 self.highlightFuzzy(m);
                 $scope.$apply();
@@ -512,16 +618,14 @@ app.controller("MapController",function($scope, $compile){
             self.map.panTo(wktToLatLng(wkt));
         }
         else{
-            self.map.panTo(loc.getPosition());
+            self.map.panTo(loc.position);
         }
     };
 
     self.shared.getMapCenter = function(){
         var c = self.map.getCenter();
         return {
-            getPosition: function() {
-                return c;
-            }
+            position: c,
         };
     };
 
@@ -538,12 +642,30 @@ app.controller("MapController",function($scope, $compile){
 
     self.highlightFuzzy = function(fuzmark,pan){
         for(var i in self.fuzzyMarkers){
-            self.fuzzyMarkers[i].setIcon("gpx/fuzzy_red.png");
+            let mrkIcon = document.createElement("img");
+            mrkIcon.src = "gpx/fuzzy_red.png";
+            mrkIcon.style.width = "32px";
+            mrkIcon.style.height = "32px";
+            self.fuzzyMarkers[i].content = mrkIcon;
         }
-        fuzmark.setIcon("gpx/fuzzy_green.png");
+        let mrkIcon = document.createElement("img");
+        mrkIcon.src = "gpx/fuzzy_green.png";
+        mrkIcon.style.width = "32px";
+        mrkIcon.style.height = "32px";
+        fuzmark.content = mrkIcon;
         if(pan==null || pan)
-            self.map.panTo(fuzmark.getPosition());
+            self.map.panTo(fuzmark.position);
     };
+
+    self.unhighlightFuzzy = function(){
+        for(var i in self.fuzzyMarkers){
+            let mrkIcon = document.createElement("img");
+            mrkIcon.src = "gpx/fuzzy_red.png";
+            mrkIcon.style.width = "32px";
+            mrkIcon.style.height = "32px";
+            self.fuzzyMarkers[i].content = mrkIcon;
+        }
+    }
 
     self.setMapDrawingMode = function(mode){
         if(mode && self.shared.newMarker!=null) {
@@ -555,7 +677,12 @@ app.controller("MapController",function($scope, $compile){
     };
 
     self.shared.quitMarker = function () {
-        self.setMapDrawingMode(true);
+        if(self.shared.newMarker!=null) {
+            self.shared.newMarker.map = null;
+            self.shared.newMarker = null;
+        }
+        self.drawingMode = false;
+
     };
 
     self.shared.highlightMarkers = function(){
@@ -563,12 +690,20 @@ app.controller("MapController",function($scope, $compile){
         var fuzzhgl = {};
         for(var idx in self.feedsMarkers){
             if(self.highlights.indexOf(parseInt(idx))!=-1){
-                self.feedsMarkers[idx].setIcon("gpx/mgreenfx.png");
-                self.feedsMarkers[idx].setZIndex(1000);
+                let mrkIcon = document.createElement("img");
+                mrkIcon.src = "gpx/mgreenfx.png";
+                mrkIcon.style.width = "32px";
+                mrkIcon.style.height = "32px";
+                self.feedsMarkers[idx].content = mrkIcon;
+                self.feedsMarkers[idx].zIndex = 1000;
                 limits.extend(self.feedsMarkers[idx].position);
             }
             else{
-                self.feedsMarkers[idx].setIcon("gpx/mredfx.png");
+                let mrkIcon = document.createElement("img");
+                mrkIcon.src = "gpx/mredfx.png";
+                mrkIcon.style.width = "32px";
+                mrkIcon.style.height = "32px";
+                self.feedsMarkers[idx].content = mrkIcon;
             }
         }
         for(var i in self.highlights){
@@ -592,13 +727,25 @@ app.controller("MapController",function($scope, $compile){
         }
     };
 
+    self.shared.unhighlightMarkers = function(){
+        for(let i in self.feedsMarkers){
+            let mrkIcon = document.createElement("img");
+            mrkIcon.src = "gpx/mredfx.png";
+            mrkIcon.style.width = "32px";
+            mrkIcon.style.height = "32px";
+            self.feedsMarkers[i].content = mrkIcon;
+        }
+        self.unhighlightFuzzy();
+    };
+    
+
     self.shared.getMapBounds = function(){
         var bnd = self.map.getBounds();
         return {
-            top: bnd.getNorthEast().lat(),
-            bottom: bnd.getSouthWest().lat(),
-            left: bnd.getSouthWest().lng(),
-            right: bnd.getNorthEast().lng()
+            top: bnd.getNorthEast().lat,
+            bottom: bnd.getSouthWest().lat,
+            left: bnd.getSouthWest().lng,
+            right: bnd.getNorthEast().lng
         };
     };
 
@@ -608,20 +755,22 @@ app.controller("MapController",function($scope, $compile){
             self.map.setCenter(geolocation);
             self.map.setZoom(16);
             if(window.markgeoloc==null) {
-                window.markgeoloc = new google.maps.Marker({
+                let mrkIcon = document.createElement("img");
+                mrkIcon.src = "gpx/lightbluedot.png";
+                mrkIcon.width = 18;
+                mrkIcon.height = 18;
+                mrkIcon.style.transform = "translate(-50%, -50%)";
+                window.markgeoloc = new google.maps.marker.AdvancedMarkerElement({
                     position: geolocation,
                     map: self.map,
-                    icon: {
-                        url: "gpx/lightbluedot.png",
-                        size: new google.maps.Size(18, 18),
-                        origin: new google.maps.Point(0, 0),
-                        anchor: new google.maps.Point(9, 9)
-                    }
+                    content: mrkIcon
                 });
             }
             else{
-                window.markgeoloc.setPosition(geolocation);
+                window.markgeoloc.position = geolocation;
             }
+        }, (error) => {
+            console.error("Error getting location:", error);
         });
     };
 
@@ -629,12 +778,12 @@ app.controller("MapController",function($scope, $compile){
         let limits = new google.maps.LatLngBounds();
         for(var idx in self.feedsMarkers){
             var p = self.feedsMarkers[idx].position;
-            if(p != null && !isNaN(p.lat()) && !isNaN(p.lng()))
+            if(p != null && !isNaN(p.lat) && !isNaN(p.lng))
                 limits.extend(p);
         }
         for(var key in self.fuzzyMarkers){
             var p = self.fuzzyMarkers[key].position;
-            if(p != null && !isNaN(p.lat()) && !isNaN(p.lng()))
+            if(p != null && !isNaN(p.lat) && !isNaN(p.lng))
                 limits.extend(p);
         }
         //console.log(limits);
@@ -732,11 +881,7 @@ app.controller("MapController",function($scope, $compile){
 
             self.map.panTo(places[0].geometry.location);
             places.forEach(function(place) {
-                markers.push(new google.maps.Marker({
-                    map: self.map,
-                    title: place.name,
-                    position: place.geometry.location
-                }));
+                self.createNewMarker(place.geometry.location.lat(), place.geometry.location.lng(), self.map);
             });
             //self.map.fitBounds(bounds);
         });
@@ -802,11 +947,11 @@ app.controller("NewFeedController", function ($scope, $http){
                 parent: parentId,
                 geom: (self.shared.newMarker!=null)?wkt(self.shared.newMarker):null
             };
-            $http({url: "new-feed", method:"post", data:postdata}).success(function(data){
-                if(data.status == "ok") {
+            $http({url: "new-feed", method:"post", data:postdata}).then(function(response){
+                if(response.data.status == "ok") {
                     self.updateFeeds();
                     self.newFeed = {com: "", files: []};
-                    self.shared.setMapDrawingMode(true);
+                    //self.shared.setMapDrawingMode(true);
                 }
             });
         }
@@ -846,8 +991,11 @@ app.controller("SearchController", function($scope){
     self.advSearchOpen = false;
 
     self.simpleSearch = function(){
-        if(self.simpleSearchBox!="")
+        if(self.simpleSearchBox!=""){
             self.highlightContent(self.simpleSearchBox);
+        } else {
+            self.removeHighlights();
+        }
     };
 
     self.openAdvSearch = function(){
@@ -862,6 +1010,7 @@ app.controller("SearchController", function($scope){
 
 app.controller("AdvancedSearchController", function ($scope, $http){
     var self = $scope;
+    var idarr = [];
 
     self.sdata = {
         aggType: "and",
@@ -874,6 +1023,13 @@ app.controller("AdvancedSearchController", function ($scope, $http){
     };
 
     self.search = function(){
+        if (self.sdata.content == "" && self.sdata.dateIni == null && self.sdata.dateEnd == null 
+            && self.sdata.locFilt == null && self.sdata.tagFilt == "" && self.sdata.authorFilt == ""){
+                self.removeHighlights();
+                self.dismiss();
+                return;
+            }
+
         var rdata = self.rawfeeds;
         var s = self.sdata;
         if(s.aggType == "and")
@@ -921,16 +1077,20 @@ app.controller("AdvancedSearchController", function ($scope, $http){
             filtarr.push(f);
         }
 
-        if(s.aggType=="and")
-            self.setFeeds(filtarr);
-        else
-            self.setFeeds(union(self.feeds,filtarr,self.rawfeeds,function(f){return f.id;}));
+        if(s.aggType=="and") {
+            self.idarr = filtarr.map((f) => f.id);
+            self.setHighlights(self.idarr);
+        } else {
+            self.idarr = [...new Set([...self.idarr, ...filtarr.map((f) => f.id)])];
+            self.setHighlights(self.idarr);
+            //self.setFeeds(union(self.feeds,filtarr,self.rawfeeds,function(f){return f.id;}));
+        }
         self.dismiss();
     };
 
 });
 
-app.controller("TwitterController",function($scope,$http,params){
+app.controller("TwitterController",function($scope,$http,$timeout,params){
     var self = $scope;
 
     $("#twitter-modal-query").textcomplete([
@@ -993,26 +1153,32 @@ app.controller("TwitterController",function($scope,$http,params){
     else
         self.secret = "";
     self.trends = [];
+    self.queryType = "Latest";
+    self.queryLang = "en";
 
     self.twitterRequest = function(){
         if(self.searchType=="hashtag" && self.secret!=""){
             if(self.twText=="") self.twText = "#";
             var postdata = {
-                text: self.twText,
+                text: `${self.twText} lang:${self.queryLang}`,
                 geo: self.twGeomData(self.location),
-                secret: self.secret
+                secret: self.secret,
+                qType: self.queryType
             };
             self.master.shared.secret = self.secret;
             self.waiting = true;
-            $http({url: "twitter-feeds", method:"post", data:postdata}).success(function(data){
-                alert("Found " + data.length + " twitter messages");
-                self.master.rawfeeds = self.master.rawfeeds.concat(data);
-                self.master.restoreFeeds();
-                self.waiting = false;
-                self.master.shared.mapPanTo(self.location);
-                self.master.getHistorySearches();
-                self.feedsOpened = true;
-                self.$close();
+            $http({url: "twitter-feeds", method:"post", data:postdata})
+                .then(function(response){
+                alert("Found " + response.data.length + " twitter messages");
+                self.master.rawfeeds = self.master.rawfeeds.concat(response.data);
+                $timeout(function(){
+                    self.master.restoreFeeds();
+                    self.waiting = false;
+                    self.master.shared.mapPanTo(self.location);
+                    self.master.getHistorySearches();
+                    self.feedsOpened = true;
+                    self.$close();
+                });
             });
         }
         else if(self.searchType=="user" && self.twText!="" && self.secret!=""){
@@ -1022,22 +1188,24 @@ app.controller("TwitterController",function($scope,$http,params){
             };
             self.master.shared.secret = self.secret;
             self.waiting = true;
-            $http({url: "twitter-user", method:"post", data:postdata}).success(function(data){
+            $http({url: "twitter-user", method:"post", data:postdata})
+                .then(function(response){
                 //console.log(data);
-                self.master.rawfeeds = self.master.rawfeeds.concat(data);
-                self.master.restoreFeeds();
-                self.waiting = false;
-                self.master.getHistorySearches();
-                self.master.toggleHistory();
-                self.$close();
+                self.master.rawfeeds = self.master.rawfeeds.concat(response.data);
+                $timeout(function(){
+                    self.master.restoreFeeds();
+                    self.waiting = false;
+                    self.master.getHistorySearches();
+                    self.$close();
+                });
             });
         }
     };
 
     self.getTrends = function(){
-        $http({url: "twitter-trends", method:"post"}).success(function(data) {
+        $http({url: "twitter-trends", method:"post"}).then(function(response) {
             //console.log(data);
-            self.trends = data.sort(function(a,b){return a.popular- b.popular}).slice(0,15);
+            self.trends = response.data.sort(function(a,b){return a.popular- b.popular}).slice(0,15);
         });
     };
 
@@ -1047,18 +1215,19 @@ app.controller("TwitterController",function($scope,$http,params){
 
     self.twGeomData = function(marker){
         if(typeof marker == "string") return marker+",5km";
-        return ""+marker.getPosition().lat()+","+marker.getPosition().lng()+",5km";
+        return ""+marker.position.lat+","+marker.position.lng+",5km";
     };
 
 });
 
-app.controller("HistoryListController",function($scope,$http){
+app.controller("HistoryListController",function($scope,$http,params){
     var self = $scope;
-    var hists = self.hlist;
+    var hists = params.data;
+    self.countFeeds = params.countFeeds;
+    self.openTwitterModal = params.twtMod;
     self.items = [];
 
     self.createItems = function(){
-        hists = self.hlist;
         self.items = {};
         for(var i=0; i<hists.length; i++){
             var data = JSON.parse(hists[i].query);
@@ -1067,11 +1236,11 @@ app.controller("HistoryListController",function($scope,$http){
                     self.items[data.options["screen_name"]] = {
                         title: data.options["screen_name"],
                         id: hists[i].id,
-                        dates: [{date: data.time, cant: self.countFeedsContent(data.time)}]
+                        dates: [{date: data.time, cant: self.countFeeds(data.time)}]
                     };
                 }
                 else{
-                    self.items[data.options["screen_name"]].dates.push({date: data.time, cant: self.countFeedsContent(data.time)});
+                    self.items[data.options["screen_name"]].dates.push({date: data.time, cant: self.countFeeds(data.time)});
                 }
             }
             else{
@@ -1079,13 +1248,13 @@ app.controller("HistoryListController",function($scope,$http){
                     self.items[data.options.geocode] = {
                         title: data.options.q,
                         id: hists[i].id,
-                        dates: [{date: data.time, cant: self.countFeedsContent(data.time)}]
+                        dates: [{date: data.time, cant: self.countFeeds(data.time)}]
                     };
                     var geo = data.options.geocode.split(",");
                     self.getGeoCode(geo[0],geo[1],data.options.geocode);
                 }
                 else{
-                    self.items[data.options.geocode].dates.push({date: data.time, cant: self.countFeedsContent(data.time)});
+                    self.items[data.options.geocode].dates.push({date: data.time, cant: self.countFeeds(data.time)});
                 }
             }
         }
@@ -1118,20 +1287,32 @@ app.controller("HistoryListController",function($scope,$http){
         }
         else if(qry.type == "u")
             self.openTwitterModal(qry.options["screen_name"],"user");
-        //self.$dismiss();
+        self.$dismiss();
     };
 
     self.getGeoCode = function(lat,lng,elem){
         var url = "https://maps.googleapis.com/maps/api/geocode/json?latlng="+lat+","+lng+"&key=AIzaSyA1f6WHaRzT4X3oh9t_VXFvmBcr3coP0sg";
-        $http({url:url, method:"get"}).success(function(data){
-            if(data.results[0] != null)
-                self.items[elem].geoloc = data.results[0]["formatted_address"];
+        $http({url:url, method:"get"}).then(function(response){
+            if(response.data.results[0] != null)
+                self.items[elem].geoloc = response.data.results[0]["formatted_address"];
             self.items[elem].wkt = "POINT("+lng+" "+lat+")";
         });
     };
 
-    self.shared.updateHistory = function(hl){
-        self.toggleHistory();
+    self.orderHistory = function(hobj){
+        //console.log(hobj);
+        var arr = [];
+        for(var k in hobj){
+            arr.push(hobj[k]);
+        }
+        return arr.sort(function(a,b){
+            if(a.dates == null) return -1;
+            if(b.dates == null) return 1;
+            return - parseInt(a.dates[a.dates.length-1].date) + parseInt(b.dates[b.dates.length-1].date);
+        });
+    };
+
+    self.updateHistory = function(hl){
         self.hlist = hl;
         self.createItems();
     };
@@ -1149,15 +1330,19 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
 
     let init = () => {
         self.updateChat();
+        self.loadAnalysis();
         socket.on("chat", (data) => {
             self.updateChat();
+        });
+        socket.on("info", () => {
+            self.loadAnalysis();
         });
     };
 
     self.updateChat = () => {
         return $http.post("get-chat").then((response) => {
             self.chatMsgs = response.data.map(e => {
-                if (e.author == "chat bot"){
+                if (e.author == "assistant"){
                     let html = marked.parse(e.content);
                     let trusted = $sce.trustAsHtml(html);
                     e.prettyContent = trusted;
@@ -1198,16 +1383,31 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
                             console.log("Error with assistant", error);
                         })
                 }
+            }).then(() => {
+                self.autoScroll();
             })
             .catch((error) => {
                 console.error("Chat error:", error);
             });
-        self.autoScroll();
     };
 
     self.getInfo = (whatInfo) => {
-        self.modes[whatInfo][0] = "";
-        $http.post("get-info", {feeds: self.feeds, mode: whatInfo})
+        self.modes[whatInfo][0] = "Processing tweets...";
+        $http.post("ask-info", {feeds: self.feeds, mode: whatInfo});  
+    }
+
+    self.loadAnalysis = () => {
+        $http.post("load-analysis").then(function(response){
+            self.$evalAsync(function() {
+                if(!response.data.mkd) return;
+                for (let i in response.data.mkd){
+                    if (response.data.mkd[i] == null) continue; 
+                    let html = marked.parse(response.data.mkd[i]);
+                    let trusted = $sce.trustAsHtml(html);
+                    self.modes[i][0] = trusted;
+                }
+            })
+        })
     }
 
     self.changeChat = (newMode) => {
@@ -1219,14 +1419,6 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
             }
         }
     }
-
-    socket.on("info", (whatInfo, info) => {
-        self.$evalAsync(function() {
-            let html = marked.parse(info);
-            let trusted = $sce.trustAsHtml(html);
-            self.modes[whatInfo] = [trusted, self.modes[whatInfo][1]];
-        })
-    });
 
     self.autoScroll = () => {
         const messageBox = document.querySelector(".chat-container");
@@ -1263,7 +1455,7 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
 // Static utils functions
 var wkt = function(goverlay){
     if(goverlay instanceof google.maps.Marker){
-        return "POINT("+goverlay.getPosition().lng()+" "+goverlay.getPosition().lat()+")";
+        return "POINT("+goverlay.position.lng+" "+goverlay.position.lat+")";
     }
 };
 

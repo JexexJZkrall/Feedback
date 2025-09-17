@@ -1,11 +1,16 @@
 <div class="modal-header">
-    <h3 class="modal-title">Search History</h3>
+    <h3 class="modal-title"><i class="fa fa-clock-o"></i>Search History</h3>
 </div>
 <div class="modal-body">
     <ul class="list-group">
-        <li ng-repeat="item in items" class="list-group-item">
-            <a class="btn btn-default pull-right" ng-click="resendSearch(item.id)">Re-send</a>
-            <span ng-bind-html="item.text | sanitize" class="respect-line-breaks"></span>
+        <li ng-repeat="item in orderHistory(items)" class="list-group-item">
+            <strong>{{item.title}}</a></strong><br>
+            <span>{{item.geoloc}}</span>
+                Searches:
+            <ul class="simple-padding-left">
+                <li ng-repeat="d in item.dates">{{d.date | date:'d-MM-yyyy, HH:mm'}}({{d.cant}})</li>
+            </ul>
+            <a class="btn btn-default btn-sm" ng-click="resendSearch(item.id)">Re-send</a>
         </li>
     </ul>
     <hr>

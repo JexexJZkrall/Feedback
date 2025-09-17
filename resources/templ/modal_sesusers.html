@@ -5,8 +5,22 @@
     <h4>Add more users:</h4>
     <div class="row">
         <div class="col-xs-8">
+            <input type="text" ng-model="searchBar" ng-change="searchUsers()" placeholder="Buscar usuarios" class="form-control"/>
+            <ul class="dropdown" ng-show="results.length">
+                <li ng-repeat="user in results" ng-click="addUser(user)" class="list-group-item">
+                    {{user.username}} - {{user.fullname}}
+                </li>
+            </ul>
+            <ul class="list-group">
+                <li ng-repeat="user in newMembs" class="list-group-item">
+                    {{user.username}} - {{user.fullname}} <button class="btn btn-default pull-right" ng-click="removeSelection(user)">
+                        <i class="fa fa-remove"></i></button>
+                </li>
+            </ul>
+        <!--
         <multiselect ms-header="Select Users" multiple="true" options="x.fullname for x in selectNotMembers()" ng-model="newMembs">
         </multiselect>
+        -->
         </div>
         <div class="col-xs-4">
             <button class="btn btn-success pull-right" ng-click="addToSession()"><i class="fa fa-plus"></i> Add to session</button>
@@ -16,8 +30,9 @@
     <hr/>
     <br/>
     <ul class="list-group">
-        <li ng-repeat="user in selectMembers()" class="list-group-item">
-            {{user.username}} - {{user.fullname}}
+        <li ng-repeat="user in users" class="list-group-item">
+            {{user.username}} - {{user.fullname}} <button class="pull-right" ng-if="activeUser.id == sescreator && activeUser.id != user.id" ng-click="removeFromSession(user)">
+                <i class="fa fa-remove"></i></button>
         </li>
     </ul>
 </div>

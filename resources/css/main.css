@@ -49,17 +49,27 @@ hr{
 
 .top-bar{
     background: #349746;
-    height: 40px;
+    height: 60px;
     padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .abs-full-height{
     position: absolute;
-    top: 40px;
+    top: 60px;
     bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
+    background: #9ae4a7;
 }
 
+.abs-full-height.row{
+    margin-left: 0;
+    margin-right: 0;
+}
 
 .full-height{
     height: 100%;
@@ -136,12 +146,16 @@ hr{
     width: 100%;
     height: 100%;
     background: #f4f4f4;
+    border-radius: 10px;
+    border: 5px solid #328742;
 }
 
 #map{
     display: block;
     width: 100%;
     height: 100%;
+    border-radius: 10px;
+    border: 5px solid #328742;
 }
 
 .gray{
@@ -203,6 +217,7 @@ a.map-btn {
     width: 24px;
     height: 24px;
     padding: 1px 6px;
+    font-size: 16px;
 }
 
 .popover{
@@ -244,9 +259,17 @@ a.map-btn {
 
 .graph-zoom{
     position: absolute;
-    right: 24px;
-    bottom: 5px;
+    right: 25px;
+    bottom: 20px;
     width: 28px;
+    height: 74px;
+    padding: 4px;
+}
+
+#mapctrl{
+    position: absolute;
+    right: 25px;
+    top: 20px;
     height: 74px;
     padding: 4px;
 }
@@ -267,6 +290,27 @@ a.map-btn {
     box-shadow: #999 1px 1px 4px;
 }
 
+.spatiated-hz{
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.sessions-container{
+    max-width: 800px;
+    width: 90%;
+    background: #f3f3f3;
+    box-shadow: #333333 0 0 20px 8px;
+    padding: 20px;
+    position: absolute;
+    height: 90vh;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
 .session-title{
     max-width: calc(100% - 200px);
     display: inline-block;
@@ -277,17 +321,58 @@ a.map-btn {
     text-overflow: ellipsis;
 }
 
+.session-list{
+    overflow-y: auto;
+    margin-top: 10px;
+
+}
+
+.feeds-container{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.feeds-list{
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overflow-x: hidden;
+    width: 100%; 
+}
+
 .chat-container{
     height: calc(100% - 84px);
     overflow-y: auto;
     overflow: auto;
+    background: #d3f5d9;
+    border-radius: 10px;
+    border: 5px solid #328742;
+}
+
+.bot-info{
+    padding: 30px;
+    margin-top: 0.25em;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+.bot-info ol,
+.bot-info ul{
+    padding-left: 1.2em;
+    margin-left: 0;
+}
+
+.bot-info li{
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .chat-header{
-    margin: 4px 0;
+    margin: 10px;
     height: 18px;
     display: block;
-    font-size: 110%;
+    font-size: 160%;
 }
 
 .chat-box{
@@ -298,8 +383,30 @@ a.map-btn {
     margin: 4px;
 }
 
+.chat-box p{
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
 .chat-box strong{
     display: block;
+}
+
+.chat-message{
+    padding: 10px;
+    line-height: 1.4;
+}
+
+.chat-box .chat-message ol,
+.chat-box .chat-message ul {
+    padding-left: 1.2em;
+    margin-left: 0;
+}
+
+.chat-box .chat-message li{
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .chat-input{
@@ -309,6 +416,28 @@ a.map-btn {
 .chat-input textarea{
     resize: none;
     height: 100%;
+}
+
+.flex-column{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    gap: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px; 
+}
+
+.flex-element{
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.flex-element-mid{
+    flex: 1 1 50%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .padding-0{

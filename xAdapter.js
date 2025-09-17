@@ -18,80 +18,65 @@ var id_tb = 3;
  * @param req Request object from middleware
  * @param res Response object from middleware
  */
-/*
 module.exports.tweetsAsFeeds = function(socket){
-    return function(req, res){
+    return async function(req, res){
         var data = req.body;
-        console.log(data);
-        if(req.session.uid==null || data["text"]==null || data["text"]=="" || data["geo"]==null || data["geo"]=="" || data["secret"]!=twSecret){
+        if(req.session.uid==null || data["text"]==null || data["text"]=="" || data["geo"]==null || data["geo"]==""){
             res.end("[]");
             return;
         }
         var twOptions = {
             q: data["text"],
             count: twCount,
-            geocode: data["geo"]
+            geocode: data["geo"],
+            qType: data["qType"]
         };
         var inow = ""+(+Date.now());
-        let fullQuery = `${data["text"]} geocode:${data["geo"]}`;
-        rClient.v2.search(fullQuery,{max_results: twOptions.count,"tweet.fields": ["created_at","geo","author_id"], "place.fields":["full_name", "country", "geo"], "user.fields": ["username", "name"]})
-            .then(response => {
-                console.log(response);
-                if (response._realData.data == null){
-                    console.error("NO DATA ATTRIBUTE FOUND!");
+        let ses = req.session.ses;
+
+        let sql = "select pg_try_advisory_lock($1,hashtext('assistant'));"
+        let usql = "select pg_advisory_unlock($1,hashtext('assistant'));"
+        let db = new pg.Client(conString);
+        db.connect();
+        let {rows} = await db.query(sql, [ses]);
+        if (!rows[0].pg_try_advisory_lock){
+            db.end();
+            return res.status(409).end();
+        }
+        try {
+            fetchTweets(twOptions["q"], twOptions["geocode"], twOptions["qType"])
+                .then(function(tweets){
+                    const adapter = adapterTweetToFeed(twOptions.geocode,inow);
+                    Promise.all(tweets.map((tweet,i) => adapter(tweet,i)))
+                        .then(arr => {
+                            return arr.reduce((chain, item) => {
+                                return chain.then(() => addDBTweet(item, req.session.ses));
+                            }, Promise.resolve())
+                            .then(() => arr);
+                        })
+                        .then((arr) => {
+                            res.end(JSON.stringify(arr));
+                            socket.updMsg();
+                        })
+                })
+                .catch(err => {
+                    console.error("Error fetching tweets: ",err);
+                    db.query(usql, [ses]).then(()=>{
+                        db.end();
+                    });
                     res.end("[]");
                     return;
-                }
-                let arr = response._realData.data.map(adapterTweetToFeed(twOptions.geocode,inow, response));
-                for(var i=0; i<arr.length; i++){
-                    addDBTweet(arr[i], req.session.ses);
-                }
-                res.end(JSON.stringify(arr));
-                socket.updMsg();
-            })
-            .catch(err => {
-                console.log("Error whit X request: ",err);
-                res.end("[]");
-                return;
-            });
-        var searchContent = {type: "t", time: inow, options: twOptions};
-        storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
-    }
-};
-*/
-module.exports.tweetsAsFeeds = function(socket){
-    return function(req, res){
-        var data = req.body;
-        if(req.session.uid==null || data["text"]==null || data["text"]=="" || data["geo"]==null || data["geo"]=="" || data["secret"]!=twSecret){
-            res.end("[]");
-            return;
+                });
+            var searchContent = {type: "t", time: inow, options: twOptions};
+            storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
+            await db.query(usql, [ses]);
+            db.end();
+        } catch (err){
+            await db.query(usql, [ses]);
+            db.end();
         }
-        var twOptions = {
-            q: data["text"],
-            count: twCount,
-            geocode: data["geo"]
-        };
-        var inow = ""+(+Date.now());
-        fetchTweets(twOptions["q"], twOptions["geocode"])
-            .then(function(tweets){
-                let arr = tweets.map(adapterTweetToFeed(twOptions.geocode,inow))
-                for(var i=0; i<arr.length; i++){
-                    addDBTweet(arr[i], req.session.ses);
-                }
-                res.end(JSON.stringify(arr));
-                socket.updMsg();
-            })
-            .catch(err => {
-                console.log("Error fetching tweets: ",err);
-                res.end("[]");
-                return;
-            });
-        var searchContent = {type: "t", time: inow, options: twOptions};
-        storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
     }
 };
-
-
 
 module.exports.trendings = function(req, res){
     if(req.session.uid==null){
@@ -143,13 +128,13 @@ module.exports.userTweets = function(req, res){
     storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
 };
 
-async function fetchTweets(query, geo) {
+async function fetchTweets(query, geo, qtype) {
     try {
         let allTweets = [];
         cursor = null;
         pageCount = 0;
         do{
-            const params = new URLSearchParams({query: query, geocode: geo});
+            const params = new URLSearchParams({queryType: qtype, query: query, geocode: geo});
             if (cursor) {
                 params.append("cursor", cursor);
             }
@@ -225,11 +210,19 @@ var adapterTweetToFeed = function(gc,inow){
     var ss = "";
     if(gc!=null)
         ss = wktFromCoords(gc.split(",")[1],gc.split(",")[0]);
-    return function(tweet,i){
-        geoloc = null;
-        var username = null;
+    return async function(tweet,i){
+        let geoloc = null;
+        let username = null;
         if(tweet.author){
             username = tweet.author.userName;
+            try{
+                let coords = await getGeoLngLat(tweet.author.location);
+                if(coords){
+                    geoloc = wktFromCoords(coords[0], coords[1]);
+                }
+            }catch(err){
+                console.error("error fetching coords");
+            }
         }
         return {
             id: +(tweet.id),
@@ -238,7 +231,7 @@ var adapterTweetToFeed = function(gc,inow){
             time: +(new Date(tweet.createdAt)),
             geom: geoloc,
             parentfeed: -1,
-            extra: tweet.id + "|@" + username + ((ss!="")?"|":"") + ss + "|" + inow
+            extra: tweet.id + "|@" + username + "|" + ss + "|" + inow
         };
     };
 };
@@ -274,6 +267,19 @@ var twPlaceCoordToWkt = function(crds){
 var wktFromCoords = function(lng,lat){
     return "POINT("+lng+" "+lat+")";
 };
+
+var getGeoLngLat = async function(location){
+    let username = 'jexexjzkrall';
+    let geoApi = `https://secure.geonames.org/searchJSON?q=${encodeURIComponent(location)}&maxRows=1&username=${username}&lang=es`;
+    let response = await fetch(geoApi);
+    let data = await response.json();
+    
+    if (data.totalResultsCount > 0) {
+        let place = data.geonames[0];
+        return [parseFloat(place.lng), parseFloat(place.lat)];
+    }
+    return null;
+}
 
 /**
  * Adds a tweet feed to the database

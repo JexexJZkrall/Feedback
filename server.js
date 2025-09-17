@@ -9,6 +9,7 @@ var twAdpt = require("./xAdapter.js");
 var socket = require("./socket-config.js");
 let mailer = require("nodemailer");
 var aiAdpt = require("./aiAssistant.js");
+const { error } = require('console');
 
 var app = module.exports = express();
 var conString = require("./passwords.js")("conString");
@@ -37,6 +38,13 @@ app.get("/",function(req,res){
     else{
         res.redirect("login");
     }
+});
+
+app.get("/userid", function(req,res){
+    if(!req.session || !req.session.uid){
+        return res.status(401).json({error: "No has iniciado sesión"});
+    }
+    res.json({id: req.session.uid});
 });
 
 app.get("/seslist",function(req,res){
@@ -177,7 +185,7 @@ app.get("/set-session",function(req,res){
 
 app.post("/seslist", rpg.multiSQL({
     dbcon: conString,
-    sql: "select s.id, s.name, s.descr from sessions as s inner join sesusers as su on s.id=su.sesid where su.uid = $1",
+    sql: "select s.id, s.name, s.descr, s.creator from sessions as s inner join sesusers as su on s.id=su.sesid where su.uid = $1",
     sesReqData: ["uid"],
     sqlParams: [rpg.sqlParam("ses","uid")]
 }));
@@ -191,9 +199,19 @@ app.post("/newses", rpg.singleSQL({
     onEnd: function(req,res,result){
         var uid = req.session.uid;
         addSesUser(uid,result.id);
+        addSesUser(3,result.id);
+        addSesUser(58,result.id);
         res.send('{"status":"ok"}');
     }
 }));
+
+app.post("/delete-session", rpg.execSQL({
+    dbcon: conString,
+    sql: "delete from sessions where id = $1",
+    sesReqData: ["uid"],
+    postReqData: ["ses"],
+    sqlParams: [rpg.sqlParam("post","ses")]
+}))
 
 app.post("/member-list", rpg.multiSQL({
     dbcon: conString,
@@ -203,11 +221,30 @@ app.post("/member-list", rpg.multiSQL({
 }));
 
 app.post("/user-list-ses", rpg.multiSQL({
+    dbcon:conString,
+    sql: "select u.id, u.username, u.fullname from users as u join sesusers as su on u.id = su.uid where su.sesid = $1",
+    sesReqData: ["uid"],
+    postReqData: ["ses"],
+    sqlParams: [rpg.sqlParam("post","ses")]
+}));
+
+/*
+app.post("/user-list-ses", rpg.multiSQL({
     dbcon: conString,
     sql: "select u.id, u.username, u.fullname, (su.sesid is not null) as member from users as u left outer join (select * from sesusers where sesid=$1) as su on su.uid = u.id",
     sesReqData: ["uid"],
     postReqData: ["ses"],
     sqlParams: [rpg.sqlParam("post","ses")]
+}));
+*/
+
+
+app.post("/user-list-search", rpg.multiSQL({
+    dbcon:conString,
+    sql:"select id, username, fullname from users where username ilike '%' || $1 || '%' and id not in (3, 58)",
+    sesReqData: ["uid"],
+    postReqData: ["msg"],
+    sqlParams: [rpg.sqlParam("post","name")]
 }));
 
 app.post("/feed-list", rpg.multiSQL({
@@ -242,6 +279,15 @@ app.post("/add-ses-users", function(req,res){
     }
     res.end('{"status":"ok"}');
 });
+
+app.post("/remove-user-ses", function(req,res){
+    if(req.session.uid==null){
+        res.end("");
+        return;
+    }
+    removeSesUser(req.body.user, req.body.sesid);
+    res.end('{"status":"ok"}');
+})
 
 app.post("/history-list", rpg.multiSQL({
     dbcon: conString,
@@ -280,8 +326,29 @@ app.post("/send-chat-msg", rpg.execSQL({
     }
 }));
 
+app.post("/load-analysis", rpg.singleSQL({
+    dbcon: conString,
+    sql: "select insight, sentiment, posture from analysis where sesid = $1",
+    sesReqData: ["ses"],
+    sqlParams: [rpg.sqlParam("ses","ses")],
+    onEnd: function(req,res,result){
+        res.send({mkd: result});
+    }
+}))
+
 app.post("/ask-assistant", aiAdpt.askAssistant(socket));
-app.post("/get-info", aiAdpt.askAnalysis(socket));
+app.post("/ask-info", aiAdpt.askAnalysis(socket));
+
+app.post("/check-resource", rpg.singleSQL({
+    dbcon: conString,
+    sql: "select pg_try_advisory_lock($1,$2)",
+    sesReqData: ["ses"],
+    postReqData: ["resType"],
+    sqlParams: [rpg.sqlParam("ses","ses"), rpg.sqlParam("post","resType")],
+    onEnd: function(req,res,result){
+        res.send({result: result});
+    }
+}))
 
 function addSesUser(uid,ses){
     var sql = "insert into sesusers(sesid,uid) values ($1,$2)";
@@ -293,9 +360,24 @@ function addSesUser(uid,ses){
     });
 }
 
+function removeSesUser(uid,ses){
+    let sql = "delete from sesusers where sesid = $1 and uid = $2";
+    let db = new pg.Client(conString);
+    db.connect();
+    let qry = db.query(sql,[ses,uid]);
+    qry.then(function(response){
+        db.end();
+    })
+}
+
 if(!module.parent){
     var http = require('http').createServer(app);
-    var io = require("socket.io")(http);
+    var io = require("socket.io")(http, {
+        cors: {
+            origin: "https://cmdos-2800-300-6f33-1400-9a0f-cc54-cb79-a3c6.a.free.pinggy.link",
+            methods: ["GET", "POST"]
+        }
+    });
     http.listen(port,function(){
         console.log("Listening at port "+port+"\n Ctrl + C to shut down");
     });
