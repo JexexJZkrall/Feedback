@@ -31,35 +31,17 @@
         </div>
         <div class="col-xs-8">
             <span class="btn-group pull-right">
-                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="openTwitterModal()"><i class="fa fa-twitter">Search Tweets</i></button>
-                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o">Search History</i></button>
-                <button class="btn btn-default spatiated-hz" ng-click="toggleFeeds()" ng-class="{'active':feedsOpened}"><i class="fa fa-comments-o"></i>Tweets</button>
-                <button class="btn btn-default spatiated-hz" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i>Chat</button>
-                <a class="btn btn-default spatiated-hz" href="seslist"><i class="fa fa-chevron-left"></i>Change Session</a></li>
-                <a class="btn btn-default spatiated-hz" href="logout"><i class="fa fa-sign-out"></i>Log out</a>
+                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="openTwitterModal()"><i class="fa fa-twitter"> Search Tweets</i></button>
+                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"> Search History</i></button>
+                <button class="btn btn-default spatiated-hz" ng-click="toggleFeeds()" ng-class="{'active':feedsOpened}"><i class="fa fa-comments-o"></i> Tweets</button>
+                <button class="btn btn-default spatiated-hz" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i> Discussion</button>
+                <a class="btn btn-default spatiated-hz" href="seslist"><i class="fa fa-chevron-left"></i> Change Session</a></li>
+                <a class="btn btn-default spatiated-hz" href="logout"><i class="fa fa-sign-out"></i> Log out</a>
             </span>
         </div>
     </div>
 
     <div class="row abs-full-height">
-        <!--
-        <div class="col-sm-2 full-height scrollable no-padding-right simple-padding-left resizable-ver" ng-show="historyOpened">
-            <h4><i class="fa fa-clock-o"></i> Search History</h4>
-            <div ng-controller="HistoryListController">
-                <ul class="list-group">
-                    <li ng-repeat="item in orderHistory(items)" class="list-group-item">
-                        <strong><a ng-click="setHighlights(fuzzyPlaces[item.wkt])">{{item.title}}</a></strong><br>
-                        <span>{{item.geoloc}}</span>
-                        Searches:
-                        <ul class="simple-padding-left">
-                            <li ng-repeat="d in item.dates"><a class="green" ng-click="highlightContent(d.date)">{{d.date | date:'d-MM-yyyy, HH:mm'}}</a> ({{d.cant}})</li>
-                        </ul>
-                        <a class="btn btn-default btn-sm" ng-click="resendSearch(item.id)">Re-send</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        -->
         <div class="full-height no-padding-right resizable-hor feeds-container" ng-class="{'col-sm-3': chatOpened,
                     'col-sm-4': !chatOpened}" ng-show="feedsOpened">
             <div class="simple-padding" ng-controller="NewFeedController">
@@ -131,23 +113,20 @@
         <div ng-class="{'col-sm-3 flex-column resizable-hor': feedsOpened,
              'col-sm-5 flex-column resizable-hor': !feedsOpened}" ng-show="chatOpened" ng-controller="ChatController">
             <div>
-                <button class="btn btn-default" ng-click="changeChat('chat')"><i class="fa fa-comments"></i>Discussion</button>
-                <button class="btn btn-default" ng-click="changeChat('insight')"><i class="fa fa-lightbulb-o"></i>Insight</button>
-                <button class="btn btn-default" ng-click="changeChat('sentiment')"><i class="fa fa-heart"></i>Sentiment</button>
-                <button class="btn btn-default" ng-click="changeChat('posture')"><i class="fa fa-balance-scale"></i>Posture</button>
+                <button class="btn btn-default" ng-click="changeChat('chat')"><i class="fa fa-comments"></i> Chat</button>
+                <button class="btn btn-default" ng-click="changeChat('insight')"><i class="fa fa-lightbulb-o"></i> Insight</button>
+                <button class="btn btn-default" ng-click="changeChat('sentiment')"><i class="fa fa-heart"></i> Sentiment</button>
+                <button class="btn btn-default" ng-click="changeChat('posture')"><i class="fa fa-balance-scale"></i> Posture</button>
             </div>
             <div class="flex-element" ng-show="modes['chat'][1]">
-                <h4 class="chat-header"><i class="fa fa-comments"></i> Discussion Chat</h4>
+                <h4 class="chat-header"><i class="fa fa-comments"></i> Chat</h4>
                 <div class="chat-container scrollable" id="chatbox">
                     <div class="chat-box" ng-repeat="chat in chatMsgs">
-                        <div ng-if="chat.isThinking">
-                            <strong ng-bind="chat.author"></strong>
-                            Thinking...
-                        </div>
-                        <div ng-if="!chat.isThinking">
-                            <strong ng-bind="chat.author"></strong>
-                            <div class="chat-message" bind-html-compile="chat.prettyContent"></div>
-                        </div>
+                        <strong ng-bind="chat.author"></strong>
+                        <div class="chat-message" bind-html-compile="chat.prettyContent"></div>
+                    </div>
+                    <div ng-show="isThinking">
+                        <strong>Assistant is thinking...</strong>
                     </div>                
                 </div>
                 <div class="input-group chat-input">
@@ -158,24 +137,30 @@
                 </div>
             </div>
             <div class="flex-element" ng-show="modes['insight'][1]">
-                <h4 class="chat-header"><i class="fa fa-lightbulb-o"></i>Insights</h4>
-                <button ng-click="getInfo('insight')">Get Insights</button>
+                <div style="display: flex; align-items: center;">
+                    <h4 class="chat-header"><i class="fa fa-lightbulb-o"></i> Insights</h4>
+                    <button class="btn btn-default" ng-click="getInfo('insight')">Get Tweet Insights</button>
+                </div>
                 <div class="chat-container scrollable">
                     <p class="bot-info" ng-if="modes['insight'][0] == ''">No insights available.</p>
                     <div class="bot-info" bind-html-compile="modes['insight'][0]"></div>
                 </div>
             </div>
             <div class="flex-element" ng-show="modes['sentiment'][1]">
-                <h4 class="chat-header"><i class="fa fa-heart"></i>Sentiments</h4>
-                <button ng-click="getInfo('sentiment')">Get Sentiments</button>
+                <div style="display: flex; align-items: center;">
+                    <h4 class="chat-header"><i class="fa fa-heart"></i> Sentiments</h4>
+                    <button class="btn btn-default" ng-click="getInfo('sentiment')">Get Tweet Sentiments</button>
+                </div>
                 <div class="chat-container scrollable">
                     <p class="bot-info" ng-if="modes['sentiment'][0] == ''">No sentiments available.</p>
                     <div class="bot-info" bind-html-compile="modes['sentiment'][0]"></div>
                 </div>
             </div>
             <div class="flex-element" ng-show="modes['posture'][1]">
-                <h4 class="chat-header"><i class="fa fa-balance-scale"></i>Postures</h4>
-                <button ng-click="getInfo('posture')">Get Postures</button>
+                <div style="display: flex; align-items: center;">
+                    <h4 class="chat-header"><i class="fa fa-balance-scale"></i> Postures</h4>
+                    <button class="btn btn-default" ng-click="getInfo('posture')">Get Tweet Postures</button>
+                </div>
                 <div class="chat-container scrollable">
                     <p class="bot-info" ng-if="modes['posture'][0] == ''">No postures available.</p>
                     <div class="bot-info" bind-html-compile="modes['posture'][0]"></div>

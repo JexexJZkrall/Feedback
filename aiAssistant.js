@@ -272,6 +272,7 @@ module.exports.askAssistant = function(socket) {
             db.end();
             return res.status(409).end();
         }
+        socket.thinkingBot(true);
         try{
             let messages = [
                 { role: "system", content: `You are a helpful assistant. You are reffered to as @bot. You help users extract information from twitter posts.
@@ -301,6 +302,7 @@ module.exports.askAssistant = function(socket) {
                 saveBotMsg(cleanResponse,ses);
                 await db.query(usql, [ses]);
                 db.end();
+                socket.thinkingBot(false);
             } else {
                 let toolCall = response.choices[0].message.tool_calls[0];
                 let fName = toolCall.function.name;
@@ -317,6 +319,7 @@ module.exports.askAssistant = function(socket) {
                     saveBotMsg(cleanResponse,ses);
                     await db.query(usql, [ses]);
                     db.end();
+                    socket.thinkingBot(false);
                 } else {
                     let args = JSON.parse(toolCall.function.arguments);
                     let argValue = Object.values(args)[0];
@@ -338,11 +341,13 @@ module.exports.askAssistant = function(socket) {
                     saveBotMsg(cleanResponse,ses);
                     await db.query(usql, [ses]);
                     db.end();
+                    socket.thinkingBot(false);
                 }
             }
         } catch (err){
             await db.query(usql, [ses]);
-            db.end();   
+            db.end();
+            socket.thinkingBot(false);
         }
         res.end();
     }

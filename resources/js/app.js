@@ -581,26 +581,6 @@ app.controller("MapController",function($scope, $compile){
                 position: wktToLatLng(wkt),
                 content: mrkIcon,
             });
-            /*
-            (function (mark) {
-                mark.addListener("gmp-click", () => {
-                    let compHtml = $compile(`
-                        <div>
-                            <a ng-click="shared.referencePlace(${mark.position.lng}, ${mark.position.lat})" class="text-primary">
-                                Reference place in chat.
-                            </a>
-                        </div>
-                    `)(self);
-                    referenceButton.setContent(compHtml[0]);
-                    referenceButton.open({
-                        anchor:mark,
-                        map: self.map,
-                        shouldFocus: false,
-                    })
-                })
-            })(mark);
-            */
-
             mark.addListener("click",(function(a,m){return function(){
                 self.setHighlights(a);
                 self.highlightFuzzy(m);
@@ -624,8 +604,10 @@ app.controller("MapController",function($scope, $compile){
 
     self.shared.getMapCenter = function(){
         var c = self.map.getCenter();
+        let lng = ((c.lng() + 180) % 360 + 360) % 360 - 180;
+        let lat = Math.max(-85, Math.min(85, c.lat()));
         return {
-            position: c,
+            position: {lat: lat, lng: lng}
         };
     };
 
@@ -1331,12 +1313,20 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     let init = () => {
         self.updateChat();
         self.loadAnalysis();
+        $timeout(() => {
+            self.autoScroll();
+        }, 0);
         socket.on("chat", (data) => {
             self.updateChat();
         });
         socket.on("info", () => {
             self.loadAnalysis();
         });
+        socket.on("think", (data) => {
+            self.$apply(() => {
+                self.isThinking = data.thinking;
+            });
+        })
     };
 
     self.updateChat = () => {
@@ -1422,18 +1412,7 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
 
     self.autoScroll = () => {
         const messageBox = document.querySelector(".chat-container");
-
-        const newMsg = messageBox.lastElementChild;
-        const newMsgStyle = getComputedStyle(newMsg);
-        const newMsgMargin = parseInt(newMsgStyle.marginBottom);
-        const newMsgHeight = newMsg.offsetHeight + newMsgMargin;
-        const visibleHeight = messageBox.offsetHeight;
-        const containerHeight = messageBox.scrollHeight;
-        const scrollOffset = messageBox.scrollTop + visibleHeight;
-
-        if (containerHeight - newMsgHeight <= scrollOffset) {
-            messageBox.scrollTop = messageBox.scrollHeight;
-        }
+        messageBox.scrollTop = messageBox.scrollHeight;
     };
 
     self.shared.referenceMsg = (id) => {

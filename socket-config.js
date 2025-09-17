@@ -8,4 +8,7 @@ module.exports.configSocket = function(io){
     module.exports.updAnalysis = function(){
         io.of("/Feedback").emit("info",{});
     }
+    module.exports.thinkingBot = function(isThink){
+        io.of("/Feedback").emit("think",{thinking:isThink});
+    }
 };
