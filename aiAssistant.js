@@ -3,29 +3,25 @@ let conString = require("./passwords.js")("conString");
 
 var api_key = require("./passwords.js")("openai_key");
 
-var saveBotMsg = function(msg,session){
+var cleanResponse = function(response){
+    let cleanResponse = response.choices[0].message.content.replace(/\n{3,}/g, '\n\n');
+    cleanResponse = cleanResponse.split('\n\n').map(p => p.trim()).join('\n\n');
+    return cleanResponse;
+}
+
+var saveBotMsg = async function(db,msg,session){
     let sql = "insert into chat(content,sesid,uid,ctime) values ($1,$2,58,now())"
-    let db = new pg.Client(conString);
-    db.connect();
-    let qry = db.query(sql,[msg,session]);
-    qry.then(function(response){
-        db.end();
-    });
+    await db.query(sql,[msg,session]);
 };
 
-var saveAnalysis = function(mkd,session){
+var saveAnalysis = async function(db,mkd,session){
     let columns = Object.keys(mkd);
     let values = Object.values(mkd).map(v => Array.isArray(v) ? v.join('\n') : v);
     let setColumns = columns.map((col, idx) => `${col} = EXCLUDED.${col}`).join(', ');
     let sql = `insert into analysis(sesid, ${columns.join(', ')})
                 values($1, ${values.map((_,i) => `$${i + 2}`).join(', ')})
                 on conflict(sesid) do update set ${setColumns};`
-    let db = new pg.Client(conString);
-    db.connect();
-    let qry = db.query(sql, [session,...values]);
-    qry.then(function(){
-        db.end();
-    });
+    await db.query(sql, [session,...values]);
 }
 
 const tools = [
@@ -239,17 +235,15 @@ module.exports.askAnalysis = function(socket) {
                 model: "gpt-4o",
                 messages: messages,
             });
-            let cleanResponse = response.choices[0].message.content.replace(/\n{3,}/g, '\n\n');
-            cleanResponse = cleanResponse.split('\n\n').map(p => p.trim()).join('\n\n');
-            saveAnalysis({[anaType]: [cleanResponse]}, ses);
-            await db.query(usql, [ses]);
-            db.end();
-            socket.updAnalysis();
+            await saveAnalysis(db,{[anaType]: [cleanResponse(response)]}, ses);
         } catch (err){
+            console.error("Analysis error:",err);
+        } finally {
             await db.query(usql, [ses]);
-            db.end();
+            await db.end();
+            socket.updAnalysis();
+            res.end();
         }
-        res.end();
     }
 }
 
@@ -297,12 +291,7 @@ module.exports.askAssistant = function(socket) {
                 tools: tools,
             });
             if (!response.choices[0].message.tool_calls){
-                let cleanResponse = response.choices[0].message.content.replace(/\n{3,}/g, '\n\n');
-                cleanResponse = cleanResponse.split('\n\n').map(p => p.trim()).join('\n\n');
-                saveBotMsg(cleanResponse,ses);
-                await db.query(usql, [ses]);
-                db.end();
-                socket.thinkingBot(false);
+                await saveBotMsg(db,cleanResponse(response),ses);
             } else {
                 let toolCall = response.choices[0].message.tool_calls[0];
                 let fName = toolCall.function.name;
@@ -314,12 +303,7 @@ module.exports.askAssistant = function(socket) {
                         messages: messages,
                         tools: tools
                     });
-                    let cleanResponse = response2.choices[0].message.content.replace(/\n{3,}/g, '\n\n');
-                    cleanResponse = cleanResponse.split('\n\n').map(p => p.trim()).join('\n\n');
-                    saveBotMsg(cleanResponse,ses);
-                    await db.query(usql, [ses]);
-                    db.end();
-                    socket.thinkingBot(false);
+                    await saveBotMsg(db,cleanResponse(response2),ses);
                 } else {
                     let args = JSON.parse(toolCall.function.arguments);
                     let argValue = Object.values(args)[0];
@@ -336,19 +320,17 @@ module.exports.askAssistant = function(socket) {
                         messages: messages,
                         tools: tools,
                     });
-                    let cleanResponse = response2.choices[0].message.content.replace(/\n{3,}/g, '\n\n');
-                    cleanResponse = cleanResponse.split('\n\n').map(p => p.trim()).join('\n\n');
-                    saveBotMsg(cleanResponse,ses);
-                    await db.query(usql, [ses]);
-                    db.end();
-                    socket.thinkingBot(false);
+                    await saveBotMsg(db,cleanResponse(response2),ses);
                 }
             }
         } catch (err){
+            console.error("Assistant error:", err);
+        } finally {
             await db.query(usql, [ses]);
             db.end();
             socket.thinkingBot(false);
+            socket.updChat();
+            res.end();
         }
-        res.end();
     }
 };

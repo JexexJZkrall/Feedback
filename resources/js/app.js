@@ -339,6 +339,9 @@ app.controller("GraphController", function($scope){
         var container = $('#graph')[0];
         var data = { nodes: self.nodes, edges: edges };
         var options = {
+            layout: {
+                improvedLayout:false
+            },
             nodes: {
                 font: { size: 14, color: '#000000'},
                 borderWidth: 2
@@ -1313,9 +1316,6 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     let init = () => {
         self.updateChat();
         self.loadAnalysis();
-        $timeout(() => {
-            self.autoScroll();
-        }, 0);
         socket.on("chat", (data) => {
             self.updateChat();
         });
@@ -1330,7 +1330,7 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     };
 
     self.updateChat = () => {
-        return $http.post("get-chat").then((response) => {
+        $http.post("get-chat").then((response) => {
             self.chatMsgs = response.data.map(e => {
                 if (e.author == "assistant"){
                     let html = marked.parse(e.content);
@@ -1341,44 +1341,22 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
                 }
                 return e;
             });
+            self.autoScroll();
         });
     };
 
-    self.sendChatMsg = () => {
+    self.sendChatMsg = async () => {
         if(self.newMsg == null || self.newMsg === "") return;
         let msg = self.newMsg;
         self.newMsg = null;
-        $http.post("send-chat-msg", {msg:msg})
-            .then(() => {
-                return self.updateChat()
-                    .then(() => {
-                        setTimeout(() => {
-                            self.autoScroll();
-                        },0);
-                    });
-            }, error => {
-                console.error("Error sending user msg", error);
-            })
-            .then(() => {
-                if (/^@bot/.test(msg)){
-                    return $http.post("ask-assistant", {msg:msg, feeds: self.feeds})
-                        .then(() => {
-                            return self.updateChat()
-                                .then(() => {
-                                    setTimeout(() => {
-                                        self.autoScroll();
-                                    },0);
-                                });
-                        }, error => {
-                            console.log("Error with assistant", error);
-                        })
-                }
-            }).then(() => {
-                self.autoScroll();
-            })
-            .catch((error) => {
-                console.error("Chat error:", error);
-            });
+        try {
+            await $http.post("send-chat-msg", {msg:msg});
+            if (/^@bot/.test(msg)){
+                await $http.post("ask-assistant", { msg, feeds: self.feeds });
+            }
+        } catch (err){
+            console.error("Chat error:", err);
+        }
     };
 
     self.getInfo = (whatInfo) => {
@@ -1388,8 +1366,8 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
 
     self.loadAnalysis = () => {
         $http.post("load-analysis").then(function(response){
-            self.$evalAsync(function() {
-                if(!response.data.mkd) return;
+            if(!response.data.mkd) return;
+            self.$evalAsync(() => {
                 for (let i in response.data.mkd){
                     if (response.data.mkd[i] == null) continue; 
                     let html = marked.parse(response.data.mkd[i]);

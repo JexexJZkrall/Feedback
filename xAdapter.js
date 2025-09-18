@@ -45,35 +45,31 @@ module.exports.tweetsAsFeeds = function(socket){
         }
         try {
             fetchTweets(twOptions["q"], twOptions["geocode"], twOptions["qType"])
-                .then(function(tweets){
+                .then(async function(tweets){
                     const adapter = adapterTweetToFeed(twOptions.geocode,inow);
-                    Promise.all(tweets.map((tweet,i) => adapter(tweet,i)))
-                        .then(arr => {
-                            return arr.reduce((chain, item) => {
-                                return chain.then(() => addDBTweet(item, req.session.ses));
-                            }, Promise.resolve())
-                            .then(() => arr);
-                        })
-                        .then((arr) => {
-                            res.end(JSON.stringify(arr));
-                            socket.updMsg();
-                        })
+                    let feeds = await Promise.all(tweets.map((tweet,i) => adapter(tweet,i)))
+                    for (let feed of feeds){
+                        await addDBTweet(db,feed,req.session.ses);
+                    }
+                    let searchContent = {type: "t", time: inow, options: twOptions};
+                    await storeDBSearch(db,req.session.uid,req.session.ses,JSON.stringify(searchContent));
+                    
+                    await db.query(usql,[ses]);
+                    await db.end();
+
+                    socket.updMsg();
+                    res.end(JSON.stringify(feeds));
                 })
-                .catch(err => {
+                .catch(async (err) => {
                     console.error("Error fetching tweets: ",err);
-                    db.query(usql, [ses]).then(()=>{
-                        db.end();
-                    });
+                    await db.query(usql, [ses])
+                    await db.end();
                     res.end("[]");
-                    return;
                 });
-            var searchContent = {type: "t", time: inow, options: twOptions};
-            storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
-            await db.query(usql, [ses]);
-            db.end();
         } catch (err){
             await db.query(usql, [ses]);
-            db.end();
+            await db.end();
+            res.end("[]");
         }
     }
 };
@@ -174,38 +170,6 @@ async function fetchTweets(query, geo, qtype) {
  * @param gc geocode to be used as extra
  * @return Function - The function to wrap the feed object that represent the tweet
  */
-/*
-var adapterTweetToFeed = function(gc,inow,response){
-    var ss = "";
-    if(gc!=null)
-        ss = wktFromCoords(gc.split(",")[1],gc.split(",")[0]);
-    return function(tweet,i){
-        var geoloc = null;
-        if(tweet.geo){
-            if(tweet.geo.coordinates){
-                geoloc = twCoordToWkt(tweet.geo.coordinates);
-            } else if (tweet.geo.place_id){
-                let place = response._realData.includes.places.find(p => p.id === tweet.geo.place_id);
-                geoloc = twPlaceCoordToWkt(place.geo.bbox);
-            };
-        }
-        var username = null;
-        if(tweet.author_id){
-            username = response._realData.includes.users.find(user => user.id === tweet.author_id).username;
-        }
-        return {
-            id: +(tweet.id),
-            descr: tweet.text.replace("\n", ""),
-            author: id_tb,
-            time: +(new Date(tweet.created_at)),
-            geom: geoloc,
-            parentfeed: -1,
-            extra: tweet.id + "|@" + username + ((ss!="")?"|":"") + ss + "|" + inow
-        };
-    };
-};
-*/
-
 var adapterTweetToFeed = function(gc,inow){
     var ss = "";
     if(gc!=null)
@@ -286,19 +250,9 @@ var getGeoLngLat = async function(location){
  * @param tw The tweet feed object to be added
  * @param ses The session where the feed belongs to
  */
-function addDBTweet(tw,ses){
+var addDBTweet = async function(db,tw,ses){
     var sql = "insert into feeds(descr,time,author,sesid,geom,extra) values($1,$2,$3,$4,$5,$6);";
-    var db = new pg.Client(conString);
-    db.connect();
-    var qry = db.query(sql,[tw.descr,new Date(tw.time),tw.author,ses,tw.geom,tw.extra]);
-    qry.then(function(response){
-        db.end();
-    });
-    /*
-    qry.on("end",function(){
-        db.end();
-    });
-    */
+    await db.query(sql,[tw.descr,new Date(tw.time),tw.author,ses,tw.geom,tw.extra]);
 }
 
 /**
@@ -307,17 +261,7 @@ function addDBTweet(tw,ses){
  * @param ses the id of the current session
  * @param text the json stringfied text of the search
  */
-var storeDBSearch = function(uid,ses,text){
+var storeDBSearch = async function(db,uid,ses,text){
     var sql = "insert into history(uid,sesid,query) values($1,$2,$3)";
-    var db = new pg.Client(conString);
-    db.connect();
-    var qry = db.query(sql,[uid,ses,text]);
-    qry.then(function(response){
-        db.end();
-    });
-    /*
-    qry.on("end",function(){
-        db.end();
-    });
-    */
+    await db.query(sql,[uid,ses,text]);
 };
