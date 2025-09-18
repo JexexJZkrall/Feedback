@@ -4,6 +4,7 @@ var twConfig = require("./passwords.js")("twConfig");
 var twSecret = require("./passwords.js")("twSecret");
 var conString = require("./passwords.js")("conString");
 var twCount = require("./passwords")("twCount");
+var pLimit = require('p-limit');
 
 const apiKey = require("./passwords.js")("twApiIoKey"); 
 const endpoint = "https://api.twitterapi.io/twitter/tweet/advanced_search";
@@ -47,7 +48,14 @@ module.exports.tweetsAsFeeds = function(socket){
             fetchTweets(twOptions["q"], twOptions["geocode"], twOptions["qType"])
                 .then(async function(tweets){
                     const adapter = adapterTweetToFeed(twOptions.geocode,inow);
-                    let feeds = await Promise.all(tweets.map((tweet,i) => adapter(tweet,i)))
+                    
+                    let limit = pLimit(5);
+                    let feeds = await Promise.all(
+                        tweets.map((tweet,i) =>
+                            limit(() => adapter(tweet,i))
+                        )
+                    );
+                    //let feeds = await Promise.all(tweets.map((tweet,i) => adapter(tweet,i)))
                     for (let feed of feeds){
                         await addDBTweet(db,feed,req.session.ses);
                     }
@@ -185,7 +193,7 @@ var adapterTweetToFeed = function(gc,inow){
                     geoloc = wktFromCoords(coords[0], coords[1]);
                 }
             }catch(err){
-                console.error("error fetching coords");
+                console.error("error fetching coords",err);
             }
         }
         return {
