@@ -485,36 +485,11 @@ app.controller("MapController",function($scope, $compile){
             self.createNewMarker(lat,lng,self.map);
             markbutton.textContent = "Place marker";
         })
-        /*
-        self.drawingManager = new google.maps.drawing.DrawingManager({
-            drawingControl: true,
-            drawingControlOptions: {
-                position: google.maps.ControlPosition.TOP_RIGHT,
-                drawingModes: [google.maps.drawing.OverlayType.MARKER]
-            },
-            markerOptions: {
-                editable: true,
-                draggable: true,
-                icon: "gpx/mbluefx.png"
-            }
-        });
-        
-        self.drawingManager.setMap(self.map);
-        google.maps.event.addListener(self.drawingManager,'overlaycomplete',self.overlayHandler);
-        */
         self.setLoctionMapCenter();
         self.createLocationButton();
         self.createFitDataButton();
         self.initSearchBox();
     };
-    /*
-    self.overlayHandler = function(event){
-        if(self.shared.newMarker!=null)
-            self.shared.newMarker.setMap(null);
-        self.shared.newMarker = event.overlay;
-        self.setMapDrawingMode(false);
-    };
-    */
 
     self.createNewMarker = function(lat, lng, map){
         self.drawingMode = false;
@@ -548,47 +523,79 @@ app.controller("MapController",function($scope, $compile){
         })
     }
 
+    self.groupFeeds = function(feeds){
+        let group = feeds.reduce((acc, feed)=>{
+            if (!feed.geom) return acc;
+            let latLng = wktToLatLng(feed.geom);
+            let place = `${latLng.lat()},${latLng.lng()}`;
+            if(!acc[place]){
+                acc[place] = [];
+            }
+            acc[place].push(feed);
+            return acc;
+        },{});
+        return group;
+    }
+
+    self.createMarker = function(latLng,feedIds,icon,isfuzzy){
+        let mrkIcon = document.createElement("img");
+        mrkIcon.src = icon;
+        mrkIcon.style.width = "32px";
+        mrkIcon.style.height = "32px";
+
+        let mark = new google.maps.marker.AdvancedMarkerElement({
+            map: self.map,
+            position: latLng,
+            content: mrkIcon,
+        });
+        if(!isfuzzy){
+            mark.addListener("gmp-click",()=>{
+                if(feedIds.length == 1){
+                    self.highlightUnique(feedIds[0]);
+                } else {
+                    self.setHighlights(feedIds);
+                }
+                self.map.panTo(latLng);
+                $scope.$apply();    
+            });
+        } else {
+            mark.addListener("gmp-click",()=>{
+                self.setHighlights(feedIds);
+                self.highlightFuzzy(mark);
+                $scope.$apply();    
+            });
+        }
+        return mark;
+    }
+
     self.updateMap = function(){
         let empty = Object.keys(self.fuzzyMarkers).length == 0 && Object.keys(self.feedsMarkers).length == 0;
-        if(!empty)
-            self.removeAllMarkers();
-        for(var i=0; i<self.feeds.length; i++){
-            var fgeom = self.feeds[i].geom;
-            var fid = self.feeds[i].id;
-            if(fgeom==null) continue;
-            let mrkIcon = document.createElement("img");
-            mrkIcon.src = "gpx/mredfx.png";
-            mrkIcon.style.width = "32px";
-            mrkIcon.style.height = "32px";
-            var mark = new google.maps.marker.AdvancedMarkerElement({
-                map: self.map,
-                position: wktToLatLng(fgeom),
-                content: mrkIcon,
-            });
-            mark.addListener("gmp-click",(function(a,b){return function(){
-                self.highlightUnique(a);
-                self.map.panTo(wktToLatLng(b));
-                $scope.$apply();
-            }})(fid,fgeom));
-            self.feedsMarkers[fid] = mark;
+        if(!empty) self.removeAllMarkers();
+        
+        let feedGroups = self.groupFeeds(self.feeds);
+        for (let place in feedGroups){
+            let feeds = feedGroups[place];
+            let feedIds = feeds.map(feed => feed.id);
+            let latLng = wktToLatLng(feeds[0].geom);
+            let mark = self.createMarker(latLng,feedIds,"gpx/mredfx.png",false);
+
+            for (let fid of feedIds){
+                if(self.feedsMarkers[fid]){
+                    self.feedsMarkers[fid].setMap(null);
+                    self.feedsMarkers[fid] == null;
+                }
+                self.feedsMarkers[fid] = mark;
+            }
         }
         //const referenceButton = new google.maps.InfoWindow();
         for(var wkt in self.fuzzyPlaces){
             var vals = self.fuzzyPlaces[wkt];
-            let mrkIcon = document.createElement("img");
-            mrkIcon.src = "gpx/fuzzy_red.png";
-            mrkIcon.style.width = "32px";
-            mrkIcon.style.height = "32px";
-            var mark = new google.maps.marker.AdvancedMarkerElement({
-                map: self.map,
-                position: wktToLatLng(wkt),
-                content: mrkIcon,
-            });
-            mark.addListener("click",(function(a,m){return function(){
-                self.setHighlights(a);
-                self.highlightFuzzy(m);
-                $scope.$apply();
-            }})(vals,mark));
+            let latLng = wktToLatLng(wkt);
+            let mark = self.createMarker(latLng,vals,"gpx/fuzzy_red.png",true);
+            if (self.fuzzyMarkers[wkt]){
+                self.fuzzyMarkers[wkt].setMap(null);
+                self.fuzzyMarkers[wkt] == null;
+            }
             self.fuzzyMarkers[wkt] = mark;
         }
         if(empty)
@@ -626,40 +633,28 @@ app.controller("MapController",function($scope, $compile){
     };
 
     self.highlightFuzzy = function(fuzmark,pan){
-        for(var i in self.fuzzyMarkers){
-            let mrkIcon = document.createElement("img");
-            mrkIcon.src = "gpx/fuzzy_red.png";
-            mrkIcon.style.width = "32px";
-            mrkIcon.style.height = "32px";
-            self.fuzzyMarkers[i].content = mrkIcon;
+        for(let i in self.fuzzyMarkers){
+            let mark;
+            if (self.fuzzyMarkers[i] === fuzmark){
+                mark = self.createMarker(self.fuzzyMarkers[i].position,null,"gpx/fuzzy_green.png",true);
+                if(pan==null || pan) self.map.panTo(mark.position);
+            } else {
+                mark = self.createMarker(self.fuzzyMarkers[i].position,null,"gpx/fuzzy_red.png",true);
+            }
+            self.fuzzyMarkers[i].setMap(null);
+            self.fuzzyMarkers[i] = null;
+            self.fuzzyMarkers[i] = mark;
         }
-        let mrkIcon = document.createElement("img");
-        mrkIcon.src = "gpx/fuzzy_green.png";
-        mrkIcon.style.width = "32px";
-        mrkIcon.style.height = "32px";
-        fuzmark.content = mrkIcon;
-        if(pan==null || pan)
-            self.map.panTo(fuzmark.position);
     };
 
     self.unhighlightFuzzy = function(){
         for(var i in self.fuzzyMarkers){
-            let mrkIcon = document.createElement("img");
-            mrkIcon.src = "gpx/fuzzy_red.png";
-            mrkIcon.style.width = "32px";
-            mrkIcon.style.height = "32px";
-            self.fuzzyMarkers[i].content = mrkIcon;
+            let mark = self.createMarker(self.fuzzyMarkers[i].position,null,"gpx/fuzzy_red.png",true);
+            self.fuzzyMarkers[i].setMap(null);
+            self.fuzzyMarkers[i] = null;
+            self.fuzzyMarkers[i] = mark;
         }
     }
-
-    self.setMapDrawingMode = function(mode){
-        if(mode && self.shared.newMarker!=null) {
-            self.shared.newMarker.setMap(null);
-            self.shared.newMarker = null;
-        }
-        self.drawingManager.setDrawingMode(null);
-        self.drawingManager.setOptions({drawingControl: mode});
-    };
 
     self.shared.quitMarker = function () {
         if(self.shared.newMarker!=null) {
@@ -673,22 +668,25 @@ app.controller("MapController",function($scope, $compile){
     self.shared.highlightMarkers = function(){
         let limits = new google.maps.LatLngBounds();
         var fuzzhgl = {};
-        for(var idx in self.feedsMarkers){
-            if(self.highlights.indexOf(parseInt(idx))!=-1){
-                let mrkIcon = document.createElement("img");
-                mrkIcon.src = "gpx/mgreenfx.png";
-                mrkIcon.style.width = "32px";
-                mrkIcon.style.height = "32px";
-                self.feedsMarkers[idx].content = mrkIcon;
-                self.feedsMarkers[idx].zIndex = 1000;
-                limits.extend(self.feedsMarkers[idx].position);
+        
+        let feedGroups = self.groupFeeds(self.feeds);
+        for (let place in feedGroups){
+            let feeds = feedGroups[place];
+            let feedIds = feeds.map(feed => feed.id);
+            let latLng = wktToLatLng(feeds[0].geom);
+            let mark;
+            if (feedIds.some(item => self.highlights.includes(item))){
+                mark = self.createMarker(latLng,feedIds,"gpx/mgreenfx.png",false);
+                limits.extend(mark.position);
+            } else{
+                mark = self.createMarker(latLng,feedIds,"gpx/mredfx.png",false);
             }
-            else{
-                let mrkIcon = document.createElement("img");
-                mrkIcon.src = "gpx/mredfx.png";
-                mrkIcon.style.width = "32px";
-                mrkIcon.style.height = "32px";
-                self.feedsMarkers[idx].content = mrkIcon;
+            for (let fid of feedIds){
+                if (self.feedsMarkers[fid]){
+                    self.feedsMarkers[fid].setMap(null);
+                    self.feedsMarkers[fid] = null;
+                }
+                self.feedsMarkers[fid] = mark;
             }
         }
         for(var i in self.highlights){
@@ -713,12 +711,19 @@ app.controller("MapController",function($scope, $compile){
     };
 
     self.shared.unhighlightMarkers = function(){
-        for(let i in self.feedsMarkers){
-            let mrkIcon = document.createElement("img");
-            mrkIcon.src = "gpx/mredfx.png";
-            mrkIcon.style.width = "32px";
-            mrkIcon.style.height = "32px";
-            self.feedsMarkers[i].content = mrkIcon;
+        let feedGroups = self.groupFeeds(self.feeds);
+        for (let place in feedGroups){
+            let feeds = feedGroups[place];
+            let feedIds = feeds.map(feed => feed.id);
+            let latLng = wktToLatLng(feeds[0].geom);
+            let mark = self.createMarker(latLng,feedIds,"gpx/mredfx.png",false);
+            for (let fid of feedIds){
+                if (self.feedsMarkers[fid]){
+                    self.feedsMarkers[fid].setMap(null);
+                    self.feedsMarkers[fid] = null;
+                }
+                self.feedsMarkers[fid] = mark;
+            }
         }
         self.unhighlightFuzzy();
     };
@@ -874,7 +879,6 @@ app.controller("MapController",function($scope, $compile){
 
     self.init();
     self.shared.updateMap = self.updateMap;
-    self.shared.setMapDrawingMode = self.setMapDrawingMode;
 });
 
 
@@ -936,7 +940,6 @@ app.controller("NewFeedController", function ($scope, $http){
                 if(response.data.status == "ok") {
                     self.updateFeeds();
                     self.newFeed = {com: "", files: []};
-                    //self.shared.setMapDrawingMode(true);
                 }
             });
         }
