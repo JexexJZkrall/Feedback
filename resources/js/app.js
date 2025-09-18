@@ -1325,6 +1325,9 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
         socket.on("think", (data) => {
             self.$apply(() => {
                 self.isThinking = data.thinking;
+                $timeout(() => {
+                    self.autoScroll();
+                }, 0);
             });
         })
     };
@@ -1341,7 +1344,9 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
                 }
                 return e;
             });
-            self.autoScroll();
+            $timeout(() => {
+                self.autoScroll();
+            }, 0);
         });
     };
 
