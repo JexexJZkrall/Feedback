@@ -1,19 +1,24 @@
 <div class="modal-header">
     <h3 class="modal-title">Users in "{{sesname}}" session</h3>
+    <button class="btn btn-default" ng-click="$dismiss()"><i class="fa fa-remove"></i></button>
 </div>
 <div class="modal-body">
     <h4>Add more users:</h4>
     <div class="row">
         <div class="col-xs-8">
-            <input type="text" ng-model="searchBar" ng-change="searchUsers()" placeholder="Buscar usuarios" class="form-control"/>
+            <input type="text" ng-model="searchBar" ng-change="searchUsers()" placeholder="Search users" class="form-control"/>
             <ul class="dropdown" ng-show="results.length">
                 <li ng-repeat="user in results" ng-click="addUser(user)" class="list-group-item">
                     {{user.username}} - {{user.fullname}}
                 </li>
             </ul>
+            <br/>
+            <hr/>
+            <br/>
             <ul class="list-group">
+                <p ng-if="newMembs.length > 0">New members:</p>
                 <li ng-repeat="user in newMembs" class="list-group-item">
-                    {{user.username}} - {{user.fullname}} <button class="btn btn-default pull-right" ng-click="removeSelection(user)">
+                    {{user.username}} - {{user.fullname}} <button class="pull-right" ng-click="removeSelection(user)">
                         <i class="fa fa-remove"></i></button>
                 </li>
             </ul>
@@ -30,9 +35,13 @@
     <hr/>
     <br/>
     <ul class="list-group">
+        Members:
         <li ng-repeat="user in users" class="list-group-item">
-            {{user.username}} - {{user.fullname}} <button class="pull-right" ng-if="activeUser.id == sescreator && activeUser.id != user.id" ng-click="removeFromSession(user)">
-                <i class="fa fa-remove"></i></button>
+            {{user.username}} - {{user.fullname}} 
+            <p class="pull-right" ng-if="user.id == sescreator">Creator</p>
+            <button class="pull-right" ng-if="activeUser.id == sescreator && activeUser.id != user.id" ng-click="removeFromSession(user)">
+                <i class="fa fa-remove"></i>
+            </button>
         </li>
     </ul>
 </div>

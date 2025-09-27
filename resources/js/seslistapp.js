@@ -111,7 +111,8 @@ app.controller("SesUsersController",function($scope,$http,$timeout,params){
         };
         $http({url: "add-ses-users", method: "post", data:postdata}).then(function (response){
             if(response.data.status=="ok") {
-                self.$close();
+                self.newMembs = [];
+                self.updateUsers();
             }
         });
     };

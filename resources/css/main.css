@@ -295,6 +295,20 @@ a.map-btn {
     margin-right: 10px;
 }
 
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  flex: 1;
+}
+
+.modal-header button {
+  flex: 0; 
+}
+
 .sessions-container{
     max-width: 800px;
     width: 90%;

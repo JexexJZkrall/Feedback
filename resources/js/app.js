@@ -213,6 +213,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
     self.propagateHighlight = function(notp){
         self.shared.highlightNodes();
         self.shared.highlightMarkers();
+        self.feedsOpened = true;
         setTimeout(function(){
             let c = $(".feed-box.highlight");
             if(c.length > 0) c[0].scrollIntoView();
@@ -303,6 +304,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
     socket.on("upd",function(data){
 	    //console.log("SOCKET");
         self.updateFeeds();
+        self.feedsOpened = true;
     });
 
     self.updateFeeds();
@@ -311,7 +313,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
 
 });
 
-app.controller("GraphController", function($scope){
+app.controller("GraphController", function($scope,$timeout){
     var self = $scope;
     self.detailBox = {show: false, expandible:false, val:-1};
 
@@ -322,7 +324,7 @@ app.controller("GraphController", function($scope){
 
         for(var i=0; i<self.feeds.length; i++){
             var fd = self.feeds[i];
-            nds.push({id: fd.id, label: fd.descr.substring(0,10), group: "feed"});
+            nds.push({id: fd.id, label: fd.descr.substring(0,15)+"...", group: "feed"});
         }
 
         for(var tag in self.tagMap){
@@ -380,8 +382,9 @@ app.controller("GraphController", function($scope){
 
         self.network = new vis.Network(container, data, options);
         self.network.on("click",function(params){
-            if(params.nodes.length<1){
+            if(params.nodes.length<1 && params.edges.length < 1){
                 self.detailBox.show = false;
+                self.removeHighlights();
                 $scope.$apply();
                 return;
             }
@@ -397,10 +400,35 @@ app.controller("GraphController", function($scope){
                 self.detailBox.expandible = false;
                 self.detailBox.val = nodeid;
             }
+            $timeout(() => {
+                self.nodeFocus(params.nodes);
+            }, 100);
             self.detailBox.show = true;
             $scope.$apply();
         });
     };
+
+    self.nodeFocus = function(nodes) {
+        if (!nodes || nodes.length === 0) return;
+
+        if (nodes.length === 1) {
+            self.network.focus(nodes[0], {
+                scale: 1.5, 
+                animation: {
+                    duration: 500,
+                    easingFunction: "easeInOutQuad"
+                }
+            });
+        } else {
+            self.network.fit({
+                nodes: nodes,
+                animation: {
+                    duration: 500,
+                    easingFunction: "easeInOutQuad"
+                }
+            });
+        }
+    }
 
     self.graphZoom = function(dz){
         self.network.moveTo({scale: self.network.getScale()*dz, animation: {duration: 100, easingFunction: "easeOutQuad"}});
@@ -431,12 +459,22 @@ app.controller("GraphController", function($scope){
     };
 
     self.shared.highlightNodes = function(){
+        let ids = [...self.highlights];
         self.detailBox.show = false;
-        self.network.selectNodes(self.highlights);
+        self.network.selectNodes(ids);
+        self.network.once('afterDrawing', () => self.nodeFocus(ids));
     };
 
     self.shared.unhighlightNodes = function(){
         self.network.unselectAll();
+        $timeout(() => {
+            self.network.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: "easeInOutQuad"
+                }
+            });
+        }, 100);
     }
 
     self.updateNetwork();
@@ -1314,7 +1352,7 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     self.chatMsgs = [];
     self.newMsg = "";
     self.isThinking = false;
-    self.modes = {"chat":["",true], "insight":["",false], "sentiment":["",false], "posture":["",false]};
+    self.modes = {"chat":["",true], "insight":["",false], "sentiment":["",false], "stance":["",false]};
 
     let init = () => {
         self.updateChat();
@@ -1393,6 +1431,16 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
             }else{
                 self.modes[mode][1] = true;
             }
+        }
+    }
+
+    self.checkEnter = ($event) =>{
+        console.log("lel");
+        if($event.which === 13 && !$event.shiftKey){
+            console.log("lal");
+            $event.preventDefault();
+            $event.stopPropagation();
+            $scope.sendChatMsg();
         }
     }
 

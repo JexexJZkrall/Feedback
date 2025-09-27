@@ -228,20 +228,9 @@ app.post("/user-list-ses", rpg.multiSQL({
     sqlParams: [rpg.sqlParam("post","ses")]
 }));
 
-/*
-app.post("/user-list-ses", rpg.multiSQL({
-    dbcon: conString,
-    sql: "select u.id, u.username, u.fullname, (su.sesid is not null) as member from users as u left outer join (select * from sesusers where sesid=$1) as su on su.uid = u.id",
-    sesReqData: ["uid"],
-    postReqData: ["ses"],
-    sqlParams: [rpg.sqlParam("post","ses")]
-}));
-*/
-
-
 app.post("/user-list-search", rpg.multiSQL({
     dbcon:conString,
-    sql:"select id, username, fullname from users where username ilike '%' || $1 || '%' and id not in (3, 58)",
+    sql:"select id, username, fullname from users where unaccent(username) ilike unaccent('%' || $1 || '%') and id not in (3, 58)",
     sesReqData: ["uid"],
     postReqData: ["msg"],
     sqlParams: [rpg.sqlParam("post","name")]
@@ -267,7 +256,7 @@ app.post("/new-feed", rpg.execSQL({
     }
 }));
 
-app.post("/add-ses-users", function(req,res){
+app.post("/add-ses-users", async function(req,res){
     if(req.session.uid==null){
         res.end("");
         return;
@@ -275,7 +264,7 @@ app.post("/add-ses-users", function(req,res){
     var users = req.body.users;
     var sesid = req.body.sesid;
     for(var i=0; i<users.length; i++){
-        addSesUser(users[i],sesid);
+        await addSesUser(users[i],sesid);
     }
     res.end('{"status":"ok"}');
 });
@@ -328,7 +317,7 @@ app.post("/send-chat-msg", rpg.execSQL({
 
 app.post("/load-analysis", rpg.singleSQL({
     dbcon: conString,
-    sql: "select insight, sentiment, posture from analysis where sesid = $1",
+    sql: "select insight, sentiment, stance from analysis where sesid = $1",
     sesReqData: ["ses"],
     sqlParams: [rpg.sqlParam("ses","ses")],
     onEnd: function(req,res,result){
@@ -350,14 +339,13 @@ app.post("/check-resource", rpg.singleSQL({
     }
 }))
 
-function addSesUser(uid,ses){
+async function addSesUser(uid,ses){
     var sql = "insert into sesusers(sesid,uid) values ($1,$2)";
     var db = new pg.Client(conString);
     db.connect();
-    var qry = db.query(sql,[ses,uid]);
-    qry.then(function(response){
-        db.end();
-    });
+    await db.query(sql,[ses,uid]);
+    db.end();
+    
 }
 
 function removeSesUser(uid,ses){
@@ -372,12 +360,7 @@ function removeSesUser(uid,ses){
 
 if(!module.parent){
     var http = require('http').createServer(app);
-    var io = require("socket.io")(http, {
-        cors: {
-            origin: "https://cmdos-2800-300-6f33-1400-9a0f-cc54-cb79-a3c6.a.free.pinggy.link",
-            methods: ["GET", "POST"]
-        }
-    });
+    var io = require("socket.io")(http);
     http.listen(port,function(){
         console.log("Listening at port "+port+"\n Ctrl + C to shut down");
     });

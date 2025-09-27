@@ -172,11 +172,11 @@ const prompts = {
                     the different sentiments (anger, happiness, sadness, fear, etc...) that are present in the list of
                     twitter posts including their percentage proportion. Then, include a summary table with some 
                     relevant tweets of the list, showing the author, tweet text and the corresponding sentiment.`,
-    "posture": `You are a user assistant. You help users in identifying the posture (Positive, Negative, Neutral)
+    "stance": `You are a user assistant. You help users in identifying the stance (Positive, Negative, Neutral)
                     of each tweet from a list of twitter posts regarding a topic. Always answer in markdown style format.
-                    NEVER wrap your markdown in triple backticks. Your answer must always include a paragraph explaining the percentage proportion of each posture in 
+                    NEVER wrap your markdown in triple backticks. Your answer must always include a paragraph explaining the percentage proportion of each stance in 
                     the list of tweets, followed by a summary table with relevant tweets of the list, showing the author,
-                    tweet text and the corresponding posture.`
+                    tweet text and the corresponding stance.`
 };
 
 const mainPrompt = `Eres un asistente de usuario. Se te refiere como @bot. Tu tarea es responder preguntas que hagan los

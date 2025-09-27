@@ -69,7 +69,7 @@
                 <div ng-if="feeds.length === 0">
                     No tweets available
                 </div>
-                <div class="feed-box" ng-repeat="feed in feeds | orderBy:'-highlight' track by feed.extra" ng-class="{highlight:(highlights.includes(feed.id))}" ng-click="highlightUnique(feed.id)">
+                <div class="feed-box" ng-repeat="feed in feeds" ng-class="{highlight:(highlights.includes(feed.id))}" ng-click="highlightUnique(feed.id)">
                     <div class="row">
                         <span class="col-xs-6"><strong>{{getUsername(feed)}}</strong></span>
                         <span class="col-xs-6"><span class="pull-right gray">{{feed.time | date:'d-MM-yyyy HH:mm'}}</span></span>
@@ -116,7 +116,7 @@
                 <button class="btn btn-default" ng-click="changeChat('chat')"><i class="fa fa-comments"></i> Chat</button>
                 <button class="btn btn-default" ng-click="changeChat('insight')"><i class="fa fa-lightbulb-o"></i> Insight</button>
                 <button class="btn btn-default" ng-click="changeChat('sentiment')"><i class="fa fa-heart"></i> Sentiment</button>
-                <button class="btn btn-default" ng-click="changeChat('posture')"><i class="fa fa-balance-scale"></i> Posture</button>
+                <button class="btn btn-default" ng-click="changeChat('stance')"><i class="fa fa-balance-scale"></i> Stance</button>
             </div>
             <div class="flex-element" ng-show="modes['chat'][1]">
                 <h4 class="chat-header"><i class="fa fa-comments"></i> Chat</h4>
@@ -130,7 +130,7 @@
                     </div>                
                 </div>
                 <div class="input-group chat-input">
-                    <textarea class="form-control" ng-model="newMsg"></textarea>
+                    <textarea class="form-control" ng-model="newMsg" placeholder="Write a message... Messages to the assistant must start with '@bot'" ng-keydown="checkEnter($event)"></textarea>
                     <a class="input-group-addon btn btn-default" ng-click="sendChatMsg()">
                         <i class="fa fa-send"></i>
                     </a>
@@ -142,7 +142,7 @@
                     <button class="btn btn-default" ng-click="getInfo('insight')">Get Tweet Insights</button>
                 </div>
                 <div class="chat-container scrollable">
-                    <p class="bot-info" ng-if="modes['insight'][0] == ''">No insights available.</p>
+                    <p class="bot-info" ng-if="modes['insight'][0] == ''">No insights available. Press above to get.</p>
                     <div class="bot-info" bind-html-compile="modes['insight'][0]"></div>
                 </div>
             </div>
@@ -152,18 +152,18 @@
                     <button class="btn btn-default" ng-click="getInfo('sentiment')">Get Tweet Sentiments</button>
                 </div>
                 <div class="chat-container scrollable">
-                    <p class="bot-info" ng-if="modes['sentiment'][0] == ''">No sentiments available.</p>
+                    <p class="bot-info" ng-if="modes['sentiment'][0] == ''">No sentiments available. Press above to get.</p>
                     <div class="bot-info" bind-html-compile="modes['sentiment'][0]"></div>
                 </div>
             </div>
-            <div class="flex-element" ng-show="modes['posture'][1]">
+            <div class="flex-element" ng-show="modes['stance'][1]">
                 <div style="display: flex; align-items: center;">
-                    <h4 class="chat-header"><i class="fa fa-balance-scale"></i> Postures</h4>
-                    <button class="btn btn-default" ng-click="getInfo('posture')">Get Tweet Postures</button>
+                    <h4 class="chat-header"><i class="fa fa-balance-scale"></i> Stances</h4>
+                    <button class="btn btn-default" ng-click="getInfo('stance')">Get Tweet Stances</button>
                 </div>
                 <div class="chat-container scrollable">
-                    <p class="bot-info" ng-if="modes['posture'][0] == ''">No postures available.</p>
-                    <div class="bot-info" bind-html-compile="modes['posture'][0]"></div>
+                    <p class="bot-info" ng-if="modes['stance'][0] == ''">No stances available. Press above to get.</p>
+                    <div class="bot-info" bind-html-compile="modes['stance'][0]"></div>
                 </div>
             </div>
         </div>
