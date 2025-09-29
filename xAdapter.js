@@ -181,14 +181,14 @@ async function fetchTweets(query, geo, qtype) {
 var adapterTweetToFeed = function(gc,inow){
     var ss = "";
     if(gc!=null)
-        ss = wktFromCoords(gc.split(",")[1],gc.split(",")[0]);
+        ss = wktFromCoords(gc.split(",")[0],gc.split(",")[1]);
     return async function(tweet,i){
         let geoloc = null;
         let username = null;
         if(tweet.author){
             username = tweet.author.userName;
             try{
-                let coords = await getGeoLngLat(tweet.author.location);
+                let coords = await getGeoLatLng(tweet.author.location);
                 if(coords){
                     geoloc = wktFromCoords(coords[0], coords[1]);
                 }
@@ -236,11 +236,11 @@ var twPlaceCoordToWkt = function(crds){
     return "POINT("+(slng/coords.length)+" "+(slat/coords.length)+")";
 };
 
-var wktFromCoords = function(lng,lat){
-    return "POINT("+lng+" "+lat+")";
+var wktFromCoords = function(lat,lng){
+    return "POINT("+lat+" "+lng+")";
 };
 
-var getGeoLngLat = async function(location){
+var getGeoLatLng = async function(location){
     let username = 'jexexjzkrall';
     let geoApi = `https://secure.geonames.org/searchJSON?q=${encodeURIComponent(location)}&maxRows=1&username=${username}&lang=es`;
     let response = await fetch(geoApi);
@@ -248,7 +248,7 @@ var getGeoLngLat = async function(location){
     
     if (data.totalResultsCount > 0) {
         let place = data.geonames[0];
-        return [parseFloat(place.lng), parseFloat(place.lat)];
+        return [parseFloat(place.lat), parseFloat(place.lng)];
     }
     return null;
 }

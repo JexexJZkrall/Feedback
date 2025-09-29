@@ -487,6 +487,8 @@ app.controller("MapController",function($scope, $compile){
     self.feedsMarkers = {};
     self.fuzzyMarkers = {};
     self.drawingMode = false;
+    self.markersData = {};
+    self.infoWindow = new google.maps.InfoWindow();
 
     self.init = function(){
         self.map = new google.maps.Map($("#map")[0],{
@@ -534,7 +536,6 @@ app.controller("MapController",function($scope, $compile){
         if (self.shared.newMarker != null){
             self.shared.newMarker.map = null;
         }
-        let infoWindow = new google.maps.InfoWindow({content: '<div> <button id="delete-marker">Delete</button> </div>'});
         let mrkIcon = document.createElement("img");
         mrkIcon.src = "gpx/mbluefx.png";
         mrkIcon.style.width = "32px";
@@ -547,14 +548,15 @@ app.controller("MapController",function($scope, $compile){
         })
         self.shared.newMarker = marker;
         marker.addListener("click", () => {
-            infoWindow.open(marker.map, marker);
-            google.maps.event.addListenerOnce(infoWindow, "domready", () => {
+            self.infoWindow.setContent('<div> <button id="delete-marker">Delete</button> </div>');
+            self.infoWindow.open(marker.map, marker);
+            google.maps.event.addListenerOnce(self.infoWindow, "domready", () => {
                 let deleteMrkBtn = document.getElementById("delete-marker");
                 if (deleteMrkBtn) {
                     deleteMrkBtn.addEventListener("click", () => {
                         marker.setMap(null);
                         self.shared.newMarker = null;
-                        infoWindow.close();
+                        self.infoWindow.close();
                     })
                 }
             })
@@ -587,7 +589,33 @@ app.controller("MapController",function($scope, $compile){
             content: mrkIcon,
         });
         if(!isfuzzy){
-            mark.addListener("gmp-click",()=>{
+            mark.addListener("click",()=>{
+                let wkt = latLng.toUrlValue(6);
+                const setInfo = (content) => {
+                    self.infoWindow.setContent('<div>' + content + '</div>');
+                    self.infoWindow.setPosition(latLng);
+                    self.infoWindow.open(self.map);
+                    self.markersData[wkt] = content;
+                };
+                if (!self.markersData[wkt]){
+                    cordToAddress(latLng).then((response)=>{
+                        setInfo(response);
+                    });
+                } else {
+                    setInfo(self.markersData[wkt]);
+                }
+                /*
+                google.maps.event.addListenerOnce(infoWindow, "domready", () => {
+                    let deleteMrkBtn = document.getElementById("delete-marker");
+                    if (deleteMrkBtn) {
+                        deleteMrkBtn.addEventListener("click", () => {
+                            mark.setMap(null);
+                            self.shared.newMarker = null;
+                            infoWindow.close();
+                        })
+                    }
+                })
+                    */
                 if(feedIds.length == 1){
                     self.highlightUnique(feedIds[0]);
                 } else {
@@ -597,9 +625,8 @@ app.controller("MapController",function($scope, $compile){
                 $scope.$apply();    
             });
         } else {
-            mark.addListener("gmp-click",()=>{
+            mark.addListener("click",()=>{
                 self.setHighlights(feedIds);
-                self.highlightFuzzy(mark);
                 $scope.$apply();    
             });
         }
@@ -618,10 +645,6 @@ app.controller("MapController",function($scope, $compile){
             let mark = self.createMarker(latLng,feedIds,"gpx/mredfx.png",false);
 
             for (let fid of feedIds){
-                if(self.feedsMarkers[fid]){
-                    self.feedsMarkers[fid].setMap(null);
-                    self.feedsMarkers[fid] == null;
-                }
                 self.feedsMarkers[fid] = mark;
             }
         }
@@ -630,10 +653,6 @@ app.controller("MapController",function($scope, $compile){
             var vals = self.fuzzyPlaces[wkt];
             let latLng = wktToLatLng(wkt);
             let mark = self.createMarker(latLng,vals,"gpx/fuzzy_red.png",true);
-            if (self.fuzzyMarkers[wkt]){
-                self.fuzzyMarkers[wkt].setMap(null);
-                self.fuzzyMarkers[wkt] == null;
-            }
             self.fuzzyMarkers[wkt] = mark;
         }
         if(empty)
@@ -662,9 +681,11 @@ app.controller("MapController",function($scope, $compile){
     self.removeAllMarkers = function(){
         for(var id in self.feedsMarkers){
             self.feedsMarkers[id].setMap(null);
+            self.feedsMarkers[id] == null;
         }
         for(var i in self.fuzzyMarkers){
             self.fuzzyMarkers[i].setMap(null);
+            self.fuzzyMarkers[i] == null;
         }
         self.feedsMarkers = {};
         self.fuzzyMarkers = {};
@@ -673,11 +694,17 @@ app.controller("MapController",function($scope, $compile){
     self.highlightFuzzy = function(fuzmark,pan){
         for(let i in self.fuzzyMarkers){
             let mark;
+            let fuzfeeds = self.feeds.filter(f => {
+                let fCoords = wktToLatLng(f.extra.split("|")[2]);
+                let mrkCoords = self.fuzzyMarkers[i].position;
+                return fCoords.lat() == mrkCoords.lat && fCoords.lng() == mrkCoords.lng;
+            });
+            let feedIds = fuzfeeds.map(f => f.id);
             if (self.fuzzyMarkers[i] === fuzmark){
-                mark = self.createMarker(self.fuzzyMarkers[i].position,null,"gpx/fuzzy_green.png",true);
+                mark = self.createMarker(self.fuzzyMarkers[i].position,feedIds,"gpx/fuzzy_green.png",true);
                 if(pan==null || pan) self.map.panTo(mark.position);
             } else {
-                mark = self.createMarker(self.fuzzyMarkers[i].position,null,"gpx/fuzzy_red.png",true);
+                mark = self.createMarker(self.fuzzyMarkers[i].position,feedIds,"gpx/fuzzy_red.png",true);
             }
             self.fuzzyMarkers[i].setMap(null);
             self.fuzzyMarkers[i] = null;
@@ -687,7 +714,13 @@ app.controller("MapController",function($scope, $compile){
 
     self.unhighlightFuzzy = function(){
         for(var i in self.fuzzyMarkers){
-            let mark = self.createMarker(self.fuzzyMarkers[i].position,null,"gpx/fuzzy_red.png",true);
+            let fuzfeeds = self.feeds.filter(f => {
+                let fCoords = wktToLatLng(f.extra.split("|")[2]);
+                let mrkCoords = self.fuzzyMarkers[i].position;
+                return fCoords.lat() == mrkCoords.lat && fCoords.lng() == mrkCoords.lng;
+            });
+            let feedIds = fuzfeeds.map(f => f.id);
+            let mark = self.createMarker(self.fuzzyMarkers[i].position,feedIds,"gpx/fuzzy_red.png",true);
             self.fuzzyMarkers[i].setMap(null);
             self.fuzzyMarkers[i] = null;
             self.fuzzyMarkers[i] = mark;
@@ -749,6 +782,7 @@ app.controller("MapController",function($scope, $compile){
     };
 
     self.shared.unhighlightMarkers = function(){
+        self.infoWindow.close();
         let feedGroups = self.groupFeeds(self.feeds);
         for (let place in feedGroups){
             let feeds = feedGroups[place];
@@ -1435,9 +1469,7 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     }
 
     self.checkEnter = ($event) =>{
-        console.log("lel");
         if($event.which === 13 && !$event.shiftKey){
-            console.log("lal");
             $event.preventDefault();
             $event.stopPropagation();
             $scope.sendChatMsg();
@@ -1451,9 +1483,11 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
 
     self.shared.referenceMsg = (id) => {
         self.newMsg += " %M"+id+" ";
-        cordToAddress(wktToLatLng(self.shared.hlcoords)) 
+        cordToAddress(wktToLatLng(self.shared.hlcoords))
             .then((addr) => {
-                self.newMsg += addr;
+                $timeout(()=>{
+                    self.newMsg += addr;
+                },10);          
             }); 
     };
 
@@ -1468,13 +1502,17 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
 // Static utils functions
 var wkt = function(goverlay){
     if(goverlay instanceof google.maps.Marker){
-        return "POINT("+goverlay.position.lng+" "+goverlay.position.lat+")";
+        return "POINT("+goverlay.position.lat+" "+goverlay.position.lng+")";
     }
 };
 
+var latLngTowkt = function(latlng){
+    return "POINT("+latlng.lat+" "+latlng.lng+")";
+}
+
 var wktToLatLng = function(a) {
     var comps = a.substring(6,a.length-1).split(" ");
-    return new google.maps.LatLng(comps[1],comps[0]);
+    return new google.maps.LatLng(comps[0],comps[1]);
 };
 
 async function getPlace(latlng) {
@@ -1490,15 +1528,20 @@ async function getPlace(latlng) {
 function cordToAddress(latlng) {
     var geocoder = new google.maps.Geocoder();
     return new Promise(function(resolve, reject) {
-        geocoder.geocode({ location: latlng }, function(results, status) {
-            if (status === "OK") {
-                if (results[0]) {
-                    resolve("Ubicación: " + results[0].formatted_address);
-                } else {
-                    resolve("Sin ubicación disponible");
-                }
+        geocoder.geocode({ location: latlng}, function(results, status) {
+            if (status === "OK" && results[0]) {
+                    let comps = results[0].address_components;
+                    let locality = comps.find(comp => comp.types.includes("locality"))?.long_name;
+                    let area_three = comps.find(comp => comp.types.includes("administrative_area_level_3"))?.long_name;
+                    let area_two = comps.find(comp => comp.types.includes("administrative_area_level_2"))?.long_name;
+                    let area_one = comps.find(comp => comp.types.includes("administrative_area_level_1"))?.long_name;
+                    let country = comps.find(comp => comp.types.includes("country"))?.long_name;
+                    let address = [locality, area_three, area_two, area_one, country].filter(Boolean).join(", ");
+                    resolve("Location: " + address);
+            } else if (status == "ZERO_RESULTS"){
+                resolve("No location available");
             } else {
-                reject("Error al buscar localización: "+ status);
+                reject("Error finding location: "+ status);
             }
         });
     });
