@@ -10,6 +10,7 @@ const apiKey = require("./passwords.js")("twApiIoKey");
 const endpointTweets = "https://api.twitterapi.io/twitter/tweet/advanced_search";
 const endpointTrends = "https://api.twitterapi.io/twitter/trends";
 const fs = require("fs");
+const path = require("path");
 
 const client = new TwitterApi(twConfig["bearer_token"]);
 const rClient = client.readOnly;
@@ -90,7 +91,8 @@ module.exports.trendings = async function(req, res){
     }
     let queryCountry = req.body["country"];
     let parsedData;
-    fs.readFile("resources/data/country_woeids.json", "utf-8", (err,data) => {
+    let filepath = path.join(__dirname, "resources/data/country_woeids.json");
+    fs.readFile(filepath, "utf-8", (err,data) => {
         if (err){
             console.error("Error reading woeid file", err);
             res.end("[]");
