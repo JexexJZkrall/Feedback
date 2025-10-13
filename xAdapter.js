@@ -7,7 +7,8 @@ var twCount = require("./passwords")("twCount");
 var pLimit = require('p-limit');
 
 const apiKey = require("./passwords.js")("twApiIoKey"); 
-const endpoint = "https://api.twitterapi.io/twitter/tweet/advanced_search";
+const endpointTweets = "https://api.twitterapi.io/twitter/tweet/advanced_search";
+const endpointTrends = "https://api.twitterapi.io/twitter/trends";
 const fs = require("fs");
 
 const client = new TwitterApi(twConfig["bearer_token"]);
@@ -65,7 +66,7 @@ module.exports.tweetsAsFeeds = function(socket){
                     await db.query(usql,[ses]);
                     await db.end();
 
-                    socket.updMsg();
+                    socket.updMsg(req.session.ses);
                     res.end(JSON.stringify(feeds));
                 })
                 .catch(async (err) => {
@@ -82,21 +83,31 @@ module.exports.tweetsAsFeeds = function(socket){
     }
 };
 
-module.exports.trendings = function(req, res){
+module.exports.trendings = async function(req, res){
     if(req.session.uid==null){
         res.end("[]");
         return;
     }
-    var twOptions = {
-        id: 1
-    };
-    rClient.get("trends/place", twOptions, function(err, data, response){
-        console.log(data);
-        var arr = data[0].trends.map(function(e){
-            return {"topic": e.name, "popular": e["tweet_volume"]};
-        });
-        res.end(JSON.stringify(arr));
-    });
+    let queryCountry = req.body["country"];
+    let parsedData;
+    fs.readFile("resources/data/country_woeids.json", "utf-8", (err,data) => {
+        if (err){
+            console.error("Error reading woeid file", err);
+            res.end("[]");
+            return;
+        }
+        try {
+            parsedData = JSON.parse(data);
+            let country = parsedData.find(c => c.place_name.toLowerCase() == queryCountry.toLowerCase()); 
+            let woeid = country? country.woeid : 1;
+            fetchTrends(woeid).then(function(response){
+                res.end(JSON.stringify(response));
+            });          
+        } catch (err){
+            console.error("Error fetching trends", err);
+            res.end("[]");
+        }
+    })
 };
 
 module.exports.userTweets = function(req, res){
@@ -132,24 +143,41 @@ module.exports.userTweets = function(req, res){
     storeDBSearch(req.session.uid,req.session.ses,JSON.stringify(searchContent));
 };
 
+async function fetchTrends(woeid){
+    try{
+        let params = new URLSearchParams({woeid: woeid});
+        let response = await fetch(`${endpointTrends}?${params.toString()}`, {
+                method: "GET",
+                headers: {"x-api-key": apiKey}
+            });
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        let data = await response.json();
+        return data.trends;
+    } catch {
+        console.error("Error fetching trends:", error);
+    }
+}
+
 async function fetchTweets(query, geo, qtype) {
     try {
         let allTweets = [];
         cursor = null;
         pageCount = 0;
         do{
-            const params = new URLSearchParams({queryType: qtype, query: query, geocode: geo});
+            let params = new URLSearchParams({queryType: qtype, query: query, geocode: geo});
             if (cursor) {
                 params.append("cursor", cursor);
             }
-            const response = await fetch(`${endpoint}?${params.toString()}`, {
+            let response = await fetch(`${endpointTweets}?${params.toString()}`, {
                 method: "GET",
                 headers: {"x-api-key": apiKey}
             });
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
-            const data = await response.json();
+            let data = await response.json();
             if (data.tweets && data.tweets.length > 0) {
                 if(allTweets.length == 0){
                     allTweets = data.tweets;

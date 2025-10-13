@@ -1,0 +1,443 @@
+[
+    {
+        "place_name": "Worldwide",
+        "country": "",
+        "woeid": 1,
+        "type": "Supername",
+        "country_code": null
+    },
+    {
+        "place_name": "United Arab Emirates",
+        "country": "United Arab Emirates",
+        "woeid": 23424738,
+        "type": "Country",
+        "country_code": "AE"
+    },
+    {
+        "place_name": "Algeria",
+        "country": "Algeria",
+        "woeid": 23424740,
+        "type": "Country",
+        "country_code": "DZ"
+    },
+    {
+        "place_name": "Argentina",
+        "country": "Argentina",
+        "woeid": 23424747,
+        "type": "Country",
+        "country_code": "AR"
+    },
+    {
+        "place_name": "Australia",
+        "country": "Australia",
+        "woeid": 23424748,
+        "type": "Country",
+        "country_code": "AU"
+    },
+    {
+        "place_name": "Austria",
+        "country": "Austria",
+        "woeid": 23424750,
+        "type": "Country",
+        "country_code": "AT"
+    },
+    {
+        "place_name": "Bahrain",
+        "country": "Bahrain",
+        "woeid": 23424753,
+        "type": "Country",
+        "country_code": "BH"
+    },
+    {
+        "place_name": "Belgium",
+        "country": "Belgium",
+        "woeid": 23424757,
+        "type": "Country",
+        "country_code": "BE"
+    },
+    {
+        "place_name": "Belarus",
+        "country": "Belarus",
+        "woeid": 23424765,
+        "type": "Country",
+        "country_code": "BY"
+    },
+    {
+        "place_name": "Brazil",
+        "country": "Brazil",
+        "woeid": 23424768,
+        "type": "Country",
+        "country_code": "BR"
+    },
+    {
+        "place_name": "Canada",
+        "country": "Canada",
+        "woeid": 23424775,
+        "type": "Country",
+        "country_code": "CA"
+    },
+    {
+        "place_name": "Chile",
+        "country": "Chile",
+        "woeid": 23424782,
+        "type": "Country",
+        "country_code": "CL"
+    },
+    {
+        "place_name": "Colombia",
+        "country": "Colombia",
+        "woeid": 23424787,
+        "type": "Country",
+        "country_code": "CO"
+    },
+    {
+        "place_name": "Denmark",
+        "country": "Denmark",
+        "woeid": 23424796,
+        "type": "Country",
+        "country_code": "DK"
+    },
+    {
+        "place_name": "Dominican Republic",
+        "country": "Dominican Republic",
+        "woeid": 23424800,
+        "type": "Country",
+        "country_code": "DO"
+    },
+    {
+        "place_name": "Ecuador",
+        "country": "Ecuador",
+        "woeid": 23424801,
+        "type": "Country",
+        "country_code": "EC"
+    },
+    {
+        "place_name": "Egypt",
+        "country": "Egypt",
+        "woeid": 23424802,
+        "type": "Country",
+        "country_code": "EG"
+    },
+    {
+        "place_name": "Ireland",
+        "country": "Ireland",
+        "woeid": 23424803,
+        "type": "Country",
+        "country_code": "IE"
+    },
+    {
+        "place_name": "France",
+        "country": "France",
+        "woeid": 23424819,
+        "type": "Country",
+        "country_code": "FR"
+    },
+    {
+        "place_name": "Ghana",
+        "country": "Ghana",
+        "woeid": 23424824,
+        "type": "Country",
+        "country_code": "GH"
+    },
+    {
+        "place_name": "Germany",
+        "country": "Germany",
+        "woeid": 23424829,
+        "type": "Country",
+        "country_code": "DE"
+    },
+    {
+        "place_name": "Greece",
+        "country": "Greece",
+        "woeid": 23424833,
+        "type": "Country",
+        "country_code": "GR"
+    },
+    {
+        "place_name": "Guatemala",
+        "country": "Guatemala",
+        "woeid": 23424834,
+        "type": "Country",
+        "country_code": "GT"
+    },
+    {
+        "place_name": "Indonesia",
+        "country": "Indonesia",
+        "woeid": 23424846,
+        "type": "Country",
+        "country_code": "ID"
+    },
+    {
+        "place_name": "India",
+        "country": "India",
+        "woeid": 23424848,
+        "type": "Country",
+        "country_code": "IN"
+    },
+    {
+        "place_name": "Israel",
+        "country": "Israel",
+        "woeid": 23424852,
+        "type": "Country",
+        "country_code": "IL"
+    },
+    {
+        "place_name": "Italy",
+        "country": "Italy",
+        "woeid": 23424853,
+        "type": "Country",
+        "country_code": "IT"
+    },
+    {
+        "place_name": "Japan",
+        "country": "Japan",
+        "woeid": 23424856,
+        "type": "Country",
+        "country_code": "JP"
+    },
+    {
+        "place_name": "Jordan",
+        "country": "Jordan",
+        "woeid": 23424860,
+        "type": "Country",
+        "country_code": "JO"
+    },
+    {
+        "place_name": "Kenya",
+        "country": "Kenya",
+        "woeid": 23424863,
+        "type": "Country",
+        "country_code": "KE"
+    },
+    {
+        "place_name": "Korea",
+        "country": "Korea",
+        "woeid": 23424868,
+        "type": "Country",
+        "country_code": "KR"
+    },
+    {
+        "place_name": "Kuwait",
+        "country": "Kuwait",
+        "woeid": 23424870,
+        "type": "Country",
+        "country_code": "KW"
+    },
+    {
+        "place_name": "Lebanon",
+        "country": "Lebanon",
+        "woeid": 23424873,
+        "type": "Country",
+        "country_code": "LB"
+    },
+    {
+        "place_name": "Latvia",
+        "country": "Latvia",
+        "woeid": 23424874,
+        "type": "Country",
+        "country_code": "LV"
+    },
+    {
+        "place_name": "Oman",
+        "country": "Oman",
+        "woeid": 23424898,
+        "type": "Country",
+        "country_code": "OM"
+    },
+    {
+        "place_name": "Mexico",
+        "country": "Mexico",
+        "woeid": 23424900,
+        "type": "Country",
+        "country_code": "MX"
+    },
+    {
+        "place_name": "Malaysia",
+        "country": "Malaysia",
+        "woeid": 23424901,
+        "type": "Country",
+        "country_code": "MY"
+    },
+    {
+        "place_name": "Nigeria",
+        "country": "Nigeria",
+        "woeid": 23424908,
+        "type": "Country",
+        "country_code": "NG"
+    },
+    {
+        "place_name": "Netherlands",
+        "country": "Netherlands",
+        "woeid": 23424909,
+        "type": "Country",
+        "country_code": "NL"
+    },
+    {
+        "place_name": "Norway",
+        "country": "Norway",
+        "woeid": 23424910,
+        "type": "Country",
+        "country_code": "NO"
+    },
+    {
+        "place_name": "New Zealand",
+        "country": "New Zealand",
+        "woeid": 23424916,
+        "type": "Country",
+        "country_code": "NZ"
+    },
+    {
+        "place_name": "Peru",
+        "country": "Peru",
+        "woeid": 23424919,
+        "type": "Country",
+        "country_code": "PE"
+    },
+    {
+        "place_name": "Pakistan",
+        "country": "Pakistan",
+        "woeid": 23424922,
+        "type": "Country",
+        "country_code": "PK"
+    },
+    {
+        "place_name": "Poland",
+        "country": "Poland",
+        "woeid": 23424923,
+        "type": "Country",
+        "country_code": "PL"
+    },
+    {
+        "place_name": "Panama",
+        "country": "Panama",
+        "woeid": 23424924,
+        "type": "Country",
+        "country_code": "PA"
+    },
+    {
+        "place_name": "Portugal",
+        "country": "Portugal",
+        "woeid": 23424925,
+        "type": "Country",
+        "country_code": "PT"
+    },
+    {
+        "place_name": "Qatar",
+        "country": "Qatar",
+        "woeid": 23424930,
+        "type": "Country",
+        "country_code": "QA"
+    },
+    {
+        "place_name": "Philippines",
+        "country": "Philippines",
+        "woeid": 23424934,
+        "type": "Country",
+        "country_code": "PH"
+    },
+    {
+        "place_name": "Puerto Rico",
+        "country": "Puerto Rico",
+        "woeid": 23424935,
+        "type": "Country",
+        "country_code": "PR"
+    },
+    {
+        "place_name": "Russia",
+        "country": "Russia",
+        "woeid": 23424936,
+        "type": "Country",
+        "country_code": "RU"
+    },
+    {
+        "place_name": "Saudi Arabia",
+        "country": "Saudi Arabia",
+        "woeid": 23424938,
+        "type": "Country",
+        "country_code": "SA"
+    },
+    {
+        "place_name": "South Africa",
+        "country": "South Africa",
+        "woeid": 23424942,
+        "type": "Country",
+        "country_code": "ZA"
+    },
+    {
+        "place_name": "Singapore",
+        "country": "Singapore",
+        "woeid": 23424948,
+        "type": "Country",
+        "country_code": "SG"
+    },
+    {
+        "place_name": "Spain",
+        "country": "Spain",
+        "woeid": 23424950,
+        "type": "Country",
+        "country_code": "ES"
+    },
+    {
+        "place_name": "Sweden",
+        "country": "Sweden",
+        "woeid": 23424954,
+        "type": "Country",
+        "country_code": "SE"
+    },
+    {
+        "place_name": "Switzerland",
+        "country": "Switzerland",
+        "woeid": 23424957,
+        "type": "Country",
+        "country_code": "CH"
+    },
+    {
+        "place_name": "Thailand",
+        "country": "Thailand",
+        "woeid": 23424960,
+        "type": "Country",
+        "country_code": "TH"
+    },
+    {
+        "place_name": "Turkey",
+        "country": "Turkey",
+        "woeid": 23424969,
+        "type": "Country",
+        "country_code": "TR"
+    },
+    {
+        "place_name": "United Kingdom",
+        "country": "United Kingdom",
+        "woeid": 23424975,
+        "type": "Country",
+        "country_code": "GB"
+    },
+    {
+        "place_name": "Ukraine",
+        "country": "Ukraine",
+        "woeid": 23424976,
+        "type": "Country",
+        "country_code": "UA"
+    },
+    {
+        "place_name": "United States",
+        "country": "United States",
+        "woeid": 23424977,
+        "type": "Country",
+        "country_code": "US"
+    },
+    {
+        "place_name": "Venezuela",
+        "country": "Venezuela",
+        "woeid": 23424982,
+        "type": "Country",
+        "country_code": "VE"
+    },
+    {
+        "place_name": "Vietnam",
+        "country": "Vietnam",
+        "woeid": 23424984,
+        "type": "Country",
+        "country_code": "VN"
+    }
+]

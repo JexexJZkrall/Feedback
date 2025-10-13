@@ -54,6 +54,56 @@ hr{
     display: flex;
     align-items: center;
     justify-content: center;
+    position:relative;
+    z-index: 1050;
+}
+
+.top-bar-vertical{
+    position: absolute;
+    top: 100%;
+    right: 10px;
+    background-color: #349746;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 1050;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+}
+
+.top-bar-vertical .btn-group{
+    display: flex;
+    width: 100%;
+    margin: 0;
+}
+
+.top-bar-vertical .btn-group .btn{
+    flex:1;
+    text-align: left;
+}
+
+@media (max-width: 767px) {
+    .logowithname {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .logo {
+        max-height: 36px;
+    }
+    .bar-menu-toggle{
+        background: none;
+        border: none;
+        color: white;
+        font-size: 28px;
+        padding: 6px 10px;
+        cursor: pointer;
+    }
+    .bar-menu-toggle i{
+        pointer-events: none;
+    }
 }
 
 .abs-full-height{
@@ -147,7 +197,7 @@ hr{
     height: 100%;
     background: #f4f4f4;
     border-radius: 10px;
-    border: 5px solid #328742;
+    border: 3px solid #328742;
 }
 
 #map{
@@ -155,7 +205,7 @@ hr{
     width: 100%;
     height: 100%;
     border-radius: 10px;
-    border: 5px solid #328742;
+    border: 3px solid #328742;
 }
 
 .gray{
@@ -274,6 +324,19 @@ a.map-btn {
     padding: 4px;
 }
 
+.mrk-feed-count{
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: bold;
+    border: 2px solid white;
+}
+
 .respect-line-breaks{
     white-space: pre-wrap;
 }
@@ -293,6 +356,14 @@ a.map-btn {
 .spatiated-hz{
     margin-left: 10px;
     margin-right: 10px;
+}
+
+.modal-backdrop{
+    z-index: 1999 !important;
+}
+
+.modal{
+    z-index: 2000 !important;
 }
 
 .modal-header {
@@ -352,16 +423,37 @@ a.map-btn {
     min-height: 0;
     overflow: auto;
     overflow-x: hidden;
-    width: 100%; 
+    width: 100%;
+    border-radius: 10px;
+    border: 3px solid #328742;
+}
+
+.discussion-container{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 767px){
+    .feeds-container,
+    .discussion-container{
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+        z-index: 1000;
+        background-color: #9ae4a7; 
+    }
 }
 
 .chat-container{
-    height: calc(100% - 84px);
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overflow: auto;
     background: #d3f5d9;
     border-radius: 10px;
-    border: 5px solid #328742;
+    border: 3px solid #328742;
 }
 
 .bot-info{
@@ -384,7 +476,7 @@ a.map-btn {
 
 .chat-header{
     margin: 10px;
-    height: 18px;
+    flex: 0 0 auto;
     display: block;
     font-size: 160%;
 }
@@ -423,7 +515,38 @@ a.map-btn {
     overflow-wrap: break-word;
 }
 
+.chat-message table,
+.bot-info table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.chat-message th,
+.chat-message td,
+.bot-info th,
+.bot-info td {
+    border: 1px solid #ccc;
+    background-color: #f2f2f2;
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.thinking-text {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0,85);
+    padding: 6px 12px;
+    border-radius: 8px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.15);
+    z-index: 10;
+    pointer-events: none;
+}
+
 .chat-input{
+    flex: 0 0 auto;
     height: 56px;
 }
 
@@ -443,6 +566,8 @@ a.map-btn {
 }
 
 .flex-element{
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;

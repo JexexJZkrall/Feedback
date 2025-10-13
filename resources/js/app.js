@@ -2,17 +2,42 @@
 
 var app = angular.module("Feedback",["ui.bootstrap"]);
 
-var socket = io("saduewa.dcc.uchile.cl:8888/Feedback");
-//var socket = io("http://localhost:8502");
+app.factory('SocketService', function(){
+    const socket = io("saduewa.dcc.uchile.cl:8888/Feedback");
+    //const socket = io("http://localhost:8502");
 
-app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
+    socket.on("connect", () => {
+        console.log("Connected to server");
+    });
+
+    socket.on("reconnect", () => {
+        console.log("Reconnected to the server");
+    });
+
+    socket.on("disconnect", (reason) => {
+        console.log("disconnected to server", reason);
+    });
+
+    socket.on("connect_error", (error) => {
+        console.error("Connection failed:", error);
+    });
+
+    return {
+        socket: socket
+    };
+});
+
+app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, SocketService){
     var self = $scope;
+    var socket = SocketService.socket;
     self.shared = {};
 
     self.feeds = [];
     self.rawfeeds = [];
     self.hashtags = {"Alojamientos":0,"CafesRestaurantes":0,"Comercios":0,"Cultura":0,"Deportes":0,"Educacion":0,"Entretencion":0,"Extranjeros":0,"Familia":0,"Finanzas":0,"Propiedades":0,"Religion":0,"Salud":0,"Seguridad":0,"ServiciosPublicos":0,"Transporte":0,"Turismo":0,"UtilidadPublica":0,"Voluntariado":0};
     self.users = [];
+    self.currentUser = {};
+    self.connectedUsers = [];
     self.usersIdHash = {};
     self.tagMap = {};
     self.fuzzyPlaces = {};
@@ -21,6 +46,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
     self.twitterEnabled = false;
     self.feedsOpened = false;
     self.chatOpened = false;
+    self.isCollapsed = false;
 
     self.updateFeeds = function(){
         $http({url: "feed-list", method: "post"}).then(function(response){
@@ -30,6 +56,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
             for(var i = 0; i < self.feeds.length; i++){
                 var f = self.feeds[i];
                 f.prettyText = self.prettyPrintFeed(f.descr, f.id);
+                f.order = i+1;
                 self.addFuzzyPlace(f.extra, f.id);
             }
             self.rawfeeds = self.feeds;
@@ -53,6 +80,20 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
         self.shared.updateMap();
         self.shared.updateAutocomplete();
     };
+
+    self.groupFeeds = function(feeds){
+        let group = feeds.reduce((acc, feed)=>{
+            if (!feed.geom) return acc;
+            let latLng = wktToLatLng(feed.geom);
+            let place = `${latLng.lat()},${latLng.lng()}`;
+            if(!acc[place]){
+                acc[place] = [];
+            }
+            acc[place].push(feed);
+            return acc;
+        },{});
+        return group;
+    }
 
     self.restoreFeeds = function(){
         self.highlights = [];
@@ -87,6 +128,21 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
     };
 
     self.getPrefixedParts = function(text){
+        let parts = [];
+        let regex = /([@#%](?:Tweet)?)(?![A-Za-z0-9]+\.[A-Za-z]{2,})([^<\s.,!?;:()\/]+)/g;
+        let match;
+        while ((match = regex.exec(text)) !== null){
+            let prefix = match[1];
+            let body = match[2];
+            let start = match.index;
+            let end = start + match[0].length;
+            parts.push({prefix:prefix[0],text:body,orgnText:match[0],from:start,to:end});
+        }
+        return parts;
+    }
+
+    /*
+    self.getPrefixedParts = function(text){
         var parts = [];
         var words = text.split(" ");
         var at;
@@ -111,6 +167,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
         }
         return parts;
     };
+    */
 
     self.prettyPrintFeed = function(feed,id){
         var parts = self.getPrefixedParts(feed);
@@ -125,7 +182,10 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
                     self.addToTagMap(part.text,id);
             }
             else if(part.prefix=="%"){
-                feedf += '<a class="green" ng-click="highlightUnique(' + part.text + ')">';
+                feedf += '<a class="green" ng-click="highlightUniqueOrd(' + part.text + ')">';
+            }
+            else if(part.prefix=="@"){
+                feedf += '<a class="green" ng-click="highlightByUser(\''+part.text+'\')">';
             }
             else
                 feedf += '<a class="green">';
@@ -192,6 +252,22 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
         self.propagateHighlight();
     };
 
+    self.highlightCoords = function(lat,lng){
+        let feedGroups = self.groupFeeds(self.feeds);
+        for (let place in feedGroups){
+            if (place == `${lat},${lng}`){
+                let feeds = feedGroups[place];
+                let feedIds = feeds.map(feed => feed.id);
+                if(feedIds.length>1){
+                    self.setHighlights(feedIds);
+                } else {
+                    self.highlightUnique(feedIds[0]);
+                }
+                break;
+            }
+        }
+    }
+
     self.highlightUnique = function(fid){
         for (let feed of self.feeds) {
             if (feed.id == fid) {feed.highlight = true;}
@@ -200,6 +276,21 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
         self.highlights = [fid];
         self.propagateHighlight(true);
     };
+
+    self.highlightUniqueOrd = function(ford){
+        let fd = self.feeds.find(f => f.order === ford);
+        if (fd){
+            self.highlightUnique(fd.id);
+        }
+    }
+
+    self.highlightByUser = function(user){
+        let feeds = self.feeds.filter(f => f.extra.split("|")[1].substring(1).toLowerCase() == user.toLowerCase());
+        if (feeds.length > 0){
+            let feedIds = feeds.map(f => f.id);
+            self.setHighlights(feedIds);
+        }
+    }
 
     self.setHighlights = function(arr){
         for (let feed of self.feeds) {
@@ -293,18 +384,31 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout){
 
     self.openDisChat = () => {
         self.chatOpened = !self.chatOpened;
+        $timeout(() => self.shared.autoScroll(), 0);
     };
 
     self.getSesInfo = function(){
-        $http.post("get-ses-info").then((response) => {
+        $http.get("/current-user").then(function(response){
+            self.currentUser["id"] = response.data.id;
+            self.currentUser["name"] = response.data.name;
+            return $http.post("get-ses-info");
+        })
+        .then(function(response){
             self.sesinfo = response.data;
-        });
+            socket.emit("joinSession", {uid:self.currentUser.id, uname: self.currentUser.name, sesid:self.sesinfo.id}); 
+        })
     };
 
     socket.on("upd",function(data){
 	    //console.log("SOCKET");
         self.updateFeeds();
         self.feedsOpened = true;
+    });
+
+    socket.on("sessionUsers", function(users){
+        self.$apply(() => {
+            self.connectedUsers = users;
+        });
     });
 
     self.updateFeeds();
@@ -488,7 +592,8 @@ app.controller("MapController",function($scope, $compile){
     self.fuzzyMarkers = {};
     self.drawingMode = false;
     self.markersData = {};
-    self.infoWindow = new google.maps.InfoWindow();
+    self.infoWindow = new google.maps.InfoWindow({pixelOffset: new google.maps.Size(0,-5)});
+    self.anchorMarker = null;
 
     self.init = function(){
         self.map = new google.maps.Map($("#map")[0],{
@@ -513,17 +618,19 @@ app.controller("MapController",function($scope, $compile){
         })
 
         self.map.addListener("click", (event) => {
-            if (!self.drawingMode) {
+            if (self.highlights.length > 0) {
                 self.removeHighlights();
-                return;
             }
-            self.map.setOptions({
-                draggableCursor: "grab",
-            });
-            let lng = ((event.latLng.lng() + 180) % 360 + 360) % 360 - 180;
-            let lat = Math.max(-85, Math.min(85, event.latLng.lat()));
-            self.createNewMarker(lat,lng,self.map);
-            markbutton.textContent = "Place marker";
+            if (self.drawingMode){
+                self.map.setOptions({
+                    draggableCursor: "grab",
+                });
+                let lng = ((event.latLng.lng() + 180) % 360 + 360) % 360 - 180;
+                let lat = Math.max(-85, Math.min(85, event.latLng.lat()));
+                self.createNewMarker(lat,lng,self.map);
+                markbutton.textContent = "Place marker";
+            }
+            
         })
         self.setLoctionMapCenter();
         self.createLocationButton();
@@ -563,39 +670,51 @@ app.controller("MapController",function($scope, $compile){
         })
     }
 
-    self.groupFeeds = function(feeds){
-        let group = feeds.reduce((acc, feed)=>{
-            if (!feed.geom) return acc;
-            let latLng = wktToLatLng(feed.geom);
-            let place = `${latLng.lat()},${latLng.lng()}`;
-            if(!acc[place]){
-                acc[place] = [];
-            }
-            acc[place].push(feed);
-            return acc;
-        },{});
-        return group;
-    }
-
     self.createMarker = function(latLng,feedIds,icon,isfuzzy){
+        let mrkDiv = document.createElement("div");
         let mrkIcon = document.createElement("img");
         mrkIcon.src = icon;
         mrkIcon.style.width = "32px";
         mrkIcon.style.height = "32px";
+        mrkDiv.appendChild(mrkIcon);
+        let feedCount = document.createElement("div");
+        feedCount.classList.add('mrk-feed-count');
+        feedCount.textContent = feedIds.length;
+        mrkDiv.appendChild(feedCount);
 
         let mark = new google.maps.marker.AdvancedMarkerElement({
             map: self.map,
             position: latLng,
-            content: mrkIcon,
+            content: mrkDiv,
         });
         if(!isfuzzy){
             mark.addListener("click",()=>{
                 let wkt = latLng.toUrlValue(6);
+                if(self.anchorMarker){
+                    self.anchorMarker.setMap(null);
+                    self.anchorMarker = null;
+                }
+                let anchor = new google.maps.Marker({
+                    position: mark.position,
+                    map:self.map,
+                    opacity: 0,
+                    clickable: false,
+                })
+                self.anchorMarker = anchor;
                 const setInfo = (content) => {
-                    self.infoWindow.setContent('<div>' + content + '</div>');
-                    self.infoWindow.setPosition(latLng);
-                    self.infoWindow.open(self.map);
+                    if (self.anchorMarker !== anchor) return;
+                    let contentContainer = document.createElement("div");
+                    contentContainer.innerHTML = `<div>${content}</div>
+                                                    <button id="refBtn">Reference place in chat</button>`;
+                    self.infoWindow.setContent(contentContainer);
+                    self.infoWindow.open({map: self.map, anchor: self.anchorMarker});
                     self.markersData[wkt] = content;
+                    google.maps.event.addListenerOnce(self.infoWindow, "domready", () => {
+                        document.getElementById("refBtn").addEventListener("click", () => {
+                            self.shared.referencePlace(latLng.lat(),latLng.lng());
+                            self.$applyAsync();
+                        });
+                    });
                 };
                 if (!self.markersData[wkt]){
                     cordToAddress(latLng).then((response)=>{
@@ -604,18 +723,12 @@ app.controller("MapController",function($scope, $compile){
                 } else {
                     setInfo(self.markersData[wkt]);
                 }
-                /*
-                google.maps.event.addListenerOnce(infoWindow, "domready", () => {
-                    let deleteMrkBtn = document.getElementById("delete-marker");
-                    if (deleteMrkBtn) {
-                        deleteMrkBtn.addEventListener("click", () => {
-                            mark.setMap(null);
-                            self.shared.newMarker = null;
-                            infoWindow.close();
-                        })
+                google.maps.event.addListenerOnce(self.infoWindow, "closeclick", () => {
+                    if (self.anchorMarker){
+                        self.anchorMarker.setMap(null);
+                        self.anchorMarker = null;
                     }
                 })
-                    */
                 if(feedIds.length == 1){
                     self.highlightUnique(feedIds[0]);
                 } else {
@@ -783,6 +896,10 @@ app.controller("MapController",function($scope, $compile){
 
     self.shared.unhighlightMarkers = function(){
         self.infoWindow.close();
+        if (self.anchorMarker){
+            self.anchorMarker.setMap(null)
+            self.anchorMarker = null;
+        }
         let feedGroups = self.groupFeeds(self.feeds);
         for (let place in feedGroups){
             let feeds = feedGroups[place];
@@ -1215,11 +1332,12 @@ app.controller("TwitterController",function($scope,$http,$timeout,params){
     self.trends = [];
     self.queryType = "Latest";
     self.queryLang = "en";
+    self.trendCountry = "";
 
     self.twitterRequest = function(){
         if(self.searchType=="hashtag" && self.secret!=""){
             if(self.twText=="") self.twText = "#";
-            var postdata = {
+            let postdata = {
                 text: `${self.twText} lang:${self.queryLang}`,
                 geo: self.twGeomData(self.location),
                 secret: self.secret,
@@ -1242,7 +1360,7 @@ app.controller("TwitterController",function($scope,$http,$timeout,params){
             });
         }
         else if(self.searchType=="user" && self.twText!="" && self.secret!=""){
-            var postdata = {
+            let postdata = {
                 user: self.twText.replace("@",""),
                 secret: self.secret
             };
@@ -1263,9 +1381,12 @@ app.controller("TwitterController",function($scope,$http,$timeout,params){
     };
 
     self.getTrends = function(){
-        $http({url: "twitter-trends", method:"post"}).then(function(response) {
+        let postData = {
+            country: self.trendCountry,
+        }
+        $http({url: "twitter-trends", method:"post", data:postData}).then(function(response) {
             //console.log(data);
-            self.trends = response.data.sort(function(a,b){return a.popular- b.popular}).slice(0,15);
+            self.trends = response.data.sort(function(a,b){return a.trend.rank - b.trend.rank}).slice(0,15);
         });
     };
 
@@ -1380,8 +1501,9 @@ app.controller("HistoryListController",function($scope,$http,params){
     self.createItems();
 });
 
-app.controller("ChatController", function($scope, $http, $timeout, $sce){
+app.controller("ChatController", function($scope, $http, $timeout, $sce, SocketService){
     var self = $scope;
+    var socket = SocketService.socket;
 
     self.chatMsgs = [];
     self.newMsg = "";
@@ -1391,36 +1513,46 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     let init = () => {
         self.updateChat();
         self.loadAnalysis();
-        socket.on("chat", (data) => {
-            self.updateChat();
+        socket.on("chat", () => {
+            self.$apply(() => {
+                self.updateChat();
+            })
         });
         socket.on("info", () => {
+            console.log("lal");
             self.loadAnalysis();
         });
         socket.on("think", (data) => {
             self.$apply(() => {
                 self.isThinking = data.thinking;
-                $timeout(() => {
-                    self.autoScroll();
-                }, 0);
             });
         })
     };
 
     self.updateChat = () => {
         $http.post("get-chat").then((response) => {
-            self.chatMsgs = response.data.map(e => {
-                if (e.author == "assistant"){
-                    let html = marked.parse(e.content);
-                    let trusted = $sce.trustAsHtml(html);
-                    e.prettyContent = trusted;
-                }else{
-                    e.prettyContent = self.shared.prettyPrintFeed(e.content, null);
-                }
-                return e;
-            });
             $timeout(() => {
-                self.autoScroll();
+                self.chatMsgs = response.data.map(e => {
+                    if (e.author == "assistant"){
+                        let html = marked.parse(e.content);
+                        html = html.replace(/\{(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)\}/g,
+                                        function(match, lat, _1, lng){
+                                            return '<a class="green" ng-click="highlightCoords('+lat+','+lng+')">'+match+'</a>';
+                                        }
+                                    );
+                        html = self.shared.prettyPrintFeed(html,null);
+                        let trusted = $sce.trustAsHtml(html);
+                        e.prettyContent = trusted;
+                    }else{
+                        e.prettyContent = self.shared.prettyPrintFeed(e.content, null);
+                        e.prettyContent = e.prettyContent.replace(/\{(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)\}/g,
+                                            function(match, lat, _1, lng){
+                                                return '<a class="green" ng-click="highlightCoords('+lat+','+lng+')">'+match+'</a>';
+                                            }
+                                        );
+                    }
+                    return e;
+                });
             }, 0);
         });
     };
@@ -1477,21 +1609,37 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce){
     }
 
     self.autoScroll = () => {
-        const messageBox = document.querySelector(".chat-container");
+        let messageBox = document.querySelector(".chat-container");
         messageBox.scrollTop = messageBox.scrollHeight;
     };
 
-    self.shared.referenceMsg = (id) => {
-        self.newMsg += " %M"+id+" ";
+    self.shared.autoScroll = self.autoScroll;
+
+    self.$watchCollection(() => self.chatMsgs, (newChat, oldChat) => {
+        if (newChat.length > oldChat.length && self.chatOpened){
+            let messageBox = document.querySelector(".chat-container");
+            let isNearBottom = messageBox.scrollHeight - messageBox.clientHeight - messageBox.scrollTop < 100;
+            if (isNearBottom) {
+                $timeout(() => self.autoScroll(), 0);
+            }
+        }
+    })
+
+    self.shared.referenceMsg = (order) => {
+        self.chatOpened = true;
+        self.newMsg += " %Tweet"+order+" ";
+        /*
         cordToAddress(wktToLatLng(self.shared.hlcoords))
             .then((addr) => {
                 $timeout(()=>{
                     self.newMsg += addr;
                 },10);          
-            }); 
+            });
+        */
     };
 
     self.shared.referencePlace = (lat, lng) => {
+        self.chatOpened = true;
         self.newMsg += "{"+lat+","+lng+"}";
     }
 
@@ -1536,7 +1684,7 @@ function cordToAddress(latlng) {
                     let area_two = comps.find(comp => comp.types.includes("administrative_area_level_2"))?.long_name;
                     let area_one = comps.find(comp => comp.types.includes("administrative_area_level_1"))?.long_name;
                     let country = comps.find(comp => comp.types.includes("country"))?.long_name;
-                    let address = [locality, area_three, area_two, area_one, country].filter(Boolean).join(", ");
+                    let address = [locality, area_one, country].filter(Boolean).join(", ");
                     resolve("Location: " + address);
             } else if (status == "ZERO_RESULTS"){
                 resolve("No location available");

@@ -55,10 +55,15 @@
     <br/>
     <hr/>
     <br/>
-    <a class="btn btn-sm btn-default pull-right" ng-click="getTrends()">Show Trends</a>
-    <h4>Trending topics:</h4>
+    <div class="row">
+        <div class="col-xs-4"><h4>Trending topics:</h4></div>
+        <div class="col-xs-2">
+            <a class="btn btn-sm btn-default pull-right" ng-click="getTrends()">Show Trends</a>
+        </div>
+        <div class="col-xs-6"><input class="form-control input-sm" placeholder="Indicate country. Default is worldwide" ng-model="trendCountry"/></div>
+    </div>
     <span ng-repeat="tr in trends">
-        <a class="green spatied" ng-click="fillText(tr.topic)">{{tr.topic}}</a>
+        <a class="green spatied" ng-click="fillText(tr.trend.name)">{{tr.trend.name}}</a>
     </span>
     <hr/>
     <br/>

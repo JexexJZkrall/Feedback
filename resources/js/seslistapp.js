@@ -48,7 +48,7 @@ app.controller("SesListController",function($scope, $http, $uibModal){
     }
 
     self.getId = function() {
-         $http.get("userid").then(function(response){
+         $http.get("current-user").then(function(response){
             self.activeUser = response.data;
          })
     }

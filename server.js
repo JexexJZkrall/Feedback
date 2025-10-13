@@ -40,11 +40,11 @@ app.get("/",function(req,res){
     }
 });
 
-app.get("/userid", function(req,res){
+app.get("/current-user", function(req,res){
     if(!req.session || !req.session.uid){
         return res.status(401).json({error: "No has iniciado sesión"});
     }
-    res.json({id: req.session.uid});
+    res.json({id: req.session.uid, name: req.session.uname});
 });
 
 app.get("/seslist",function(req,res){
@@ -90,6 +90,7 @@ app.post("/login", async function(req,res){
     }
     if (id != -1) {
 	    req.session.uid = id;
+        req.session.uname = req.body.user;
 	    res.redirect(".");
     } else {
 	    res.redirect("login?rc=2");
@@ -251,7 +252,7 @@ app.post("/new-feed", rpg.execSQL({
     sqlParams: [rpg.sqlParam("ses","uid"),rpg.sqlParam("post","com"),rpg.sqlParam("post","geom"),
         rpg.sqlParam("ses","ses"),rpg.sqlParam("post","parent")],
     onEnd: function(req,res){
-        socket.updMsg();
+        socket.updMsg(req.session.ses);
         res.send('{"status":"ok"}');
     }
 }));
@@ -310,7 +311,7 @@ app.post("/send-chat-msg", rpg.execSQL({
     postReqData: ["msg"],
     sqlParams: [rpg.sqlParam("post", "msg"), rpg.sqlParam("ses","ses"), rpg.sqlParam("ses","uid")],
     onEnd: function(req,res){
-        socket.updChat();
+        socket.updChat(req.session.ses);
         res.send('{"status":"ok"}');
     }
 }));
