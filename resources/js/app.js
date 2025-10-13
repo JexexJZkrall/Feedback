@@ -388,7 +388,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
     };
 
     self.getSesInfo = function(){
-        $http.get("/current-user").then(function(response){
+        $http.get("current-user").then(function(response){
             self.currentUser["id"] = response.data.id;
             self.currentUser["name"] = response.data.name;
             return $http.post("get-ses-info");
