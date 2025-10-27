@@ -46,6 +46,7 @@
                 <button class="btn btn-default spatiated-hz" ng-click="toggleFeeds()" ng-class="{'active':feedsOpened}"><i class="fa fa-comments-o"></i> Tweets</button>
                 <button class="btn btn-default spatiated-hz" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i> Discussion</button>
                 <a class="btn btn-default spatiated-hz" href="seslist"><i class="fa fa-chevron-left"></i> Change Session</a></li>
+                <a class="btn btn-default spatiated-hz" href="profile"><i class="fa fa-user"></i> Profile</a>
                 <a class="btn btn-default spatiated-hz" href="logout"><i class="fa fa-sign-out"></i> Log out</a>
             </div>
             <div class="visible-xs-block pull-right">
@@ -99,7 +100,28 @@
                     </button>
                 </span>
             </div>
-            <div class="simple-padding feeds-list scrollable">
+            <button class="btn btn-default" ng-click="onlyhighlights()"><span>{{onlyHighFeeds ? 'See all tweets' : 'See selected tweets'}}</span></button>
+            <div class="simple-padding feeds-list scrollable" ng-if="onlyHighFeeds">
+                <div ng-if="highlights.length === 0">
+                    No highlighted tweets
+                </div>
+                <div class="feed-box" ng-repeat="feed in feeds" ng-class="{highlight:(highlights.includes(feed.id))}" ng-if="highlights.includes(feed.id)">
+                    <div class="row">
+                        <span class="col-xs-1"><strong> {{feed.order}}.</strong></span>
+                        <span class="col-xs-5"><strong>{{getUsername(feed)}}</strong></span>
+                        <span class="col-xs-6"><span class="pull-right gray">{{feed.time | date:'d-MM-yyyy HH:mm'}}</span></span>
+                    </div>
+                    <span class="feed-text" bind-html-compile="feed.prettyText"></span>
+                    <span class="extra-box" ng-show="feed.extra!=null">
+                        <a ng-click="shared.referenceMsg(feed.order)" class="text-primary">Reference message in chat.</a>
+                        <br>
+                        By <a href="https://twitter.com/{{feed.extra.split('|')[1].substring(1)}}" target="_blank">{{feed.extra.split("|")[1]}}</a> -
+                        <a href="https://twitter.com/{{feed.extra.split('|')[1].substring(1)}}/status/{{feed.extra.split('|')[0]}}" target="_blank">
+                            <i class="fa fa-twitter"></i> View original tweet</a>
+                    </span>
+                </div>
+            </div>
+            <div class="simple-padding feeds-list scrollable" ng-if="!onlyHighFeeds">
                 <div ng-if="feeds.length === 0">
                     No tweets available
                 </div>

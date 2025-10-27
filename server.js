@@ -40,19 +40,40 @@ app.get("/",function(req,res){
     }
 });
 
+/*
 app.get("/current-user", function(req,res){
     if(!req.session || !req.session.uid){
         return res.status(401).json({error: "No has iniciado sesión"});
     }
     res.json({id: req.session.uid, name: req.session.uname});
 });
+*/
+
+app.post("/current-user", rpg.singleSQL({
+    dbcon: conString,
+    sql: "select id, username, fullname, mail, sex from users where id = $1",
+    sesReqData: ["uid"],
+    sqlParams: [rpg.sqlParam("ses","uid")],
+    onEnd: function(req,res,result){
+        res.json({id: result.id, name: result.username, fname: result.fullname, mail: result.mail, sex: result.sex});
+    }
+}))
 
 app.get("/seslist",function(req,res){
-    if(req.session.uid)
+    if(req.session.uid) {
+        req.session.ses = null;
         res.render("seslist");
+    }
     else
         res.redirect(".");
 });
+
+app.get("/profile", function(req,res){
+    if(req.session.uid){
+        res.render("profile");
+    } else
+        res.redirect(".");
+})
 
 app.get("/login",function(req,res){
      res.render("login", {rc: req.query.rc});
@@ -162,6 +183,14 @@ app.post("/resetpassword", rpg.execSQL({
 app.get("/new-pass/:token", (req, res) => {
     res.render("newpass", {token: req.params.token});
 });
+
+app.post("/edit-profile", rpg.execSQL({
+    dbcon: conString,
+    sql: "update users set mail = $2, sex = $3 where id = $1",
+    sesReqData: ["uid"],
+    postReqData: ["mail","sex"],
+    sqlParams: [rpg.sqlParam("ses","uid"), rpg.sqlParam("post","mail"), rpg.sqlParam("post","sex")],
+}));
 
 app.post("/newpassword", rpg.execSQL({
     dbcon: conString,
@@ -331,7 +360,7 @@ app.post("/ask-info", aiAdpt.askAnalysis(socket));
 
 app.post("/check-resource", rpg.singleSQL({
     dbcon: conString,
-    sql: "select pg_try_advisory_lock($1,$2)",
+    sql: "pg_try_advisory_lock($1,$2)",
     sesReqData: ["ses"],
     postReqData: ["resType"],
     sqlParams: [rpg.sqlParam("ses","ses"), rpg.sqlParam("post","resType")],

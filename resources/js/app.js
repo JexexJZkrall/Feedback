@@ -34,6 +34,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
 
     self.feeds = [];
     self.rawfeeds = [];
+    self.selectedFeeds = [];
     self.hashtags = {"Alojamientos":0,"CafesRestaurantes":0,"Comercios":0,"Cultura":0,"Deportes":0,"Educacion":0,"Entretencion":0,"Extranjeros":0,"Familia":0,"Finanzas":0,"Propiedades":0,"Religion":0,"Salud":0,"Seguridad":0,"ServiciosPublicos":0,"Transporte":0,"Turismo":0,"UtilidadPublica":0,"Voluntariado":0};
     self.users = [];
     self.currentUser = {};
@@ -47,6 +48,8 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
     self.feedsOpened = false;
     self.chatOpened = false;
     self.isCollapsed = false;
+    self.userInMobile = isMobileDevice();
+    self.onlyHighFeeds = false;
 
     self.updateFeeds = function(){
         $http({url: "feed-list", method: "post"}).then(function(response){
@@ -302,6 +305,10 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
     };
 
     self.propagateHighlight = function(notp){
+        self.selectedFeeds = [];
+        for(let f of self.feeds){
+            if (f.highlight === true) self.selectedFeeds.push(f);
+        }
         self.shared.highlightNodes();
         self.shared.highlightMarkers();
         self.feedsOpened = true;
@@ -313,6 +320,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
 
     self.removeHighlights = function(){
         $timeout(() => {
+            self.selectedFeeds = [];
             for (let feed of self.feeds){
                 feed.highlight = false;
             }
@@ -381,6 +389,9 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
         self.feedsOpened = !self.feedsOpened;
     }
 
+    self.onlyhighlights = function(){
+        self.onlyHighFeeds = !self.onlyHighFeeds;
+    }
 
     self.openDisChat = () => {
         self.chatOpened = !self.chatOpened;
@@ -388,7 +399,7 @@ app.controller("FeedbackController",function($scope,$http,$uibModal,$timeout, So
     };
 
     self.getSesInfo = function(){
-        $http.get("current-user").then(function(response){
+        $http.post("current-user").then(function(response){
             self.currentUser["id"] = response.data.id;
             self.currentUser["name"] = response.data.name;
             return $http.post("get-ses-info");
@@ -1325,25 +1336,27 @@ app.controller("TwitterController",function($scope,$http,$timeout,params){
     else
         self.searchType = "hashtag";
     self.waiting = false;
+    /*
     if(self.master.shared.secret!=null)
         self.secret = self.master.shared.secret;
     else
         self.secret = "";
+    */
     self.trends = [];
     self.queryType = "Latest";
     self.queryLang = "en";
     self.trendCountry = "";
 
     self.twitterRequest = function(){
-        if(self.searchType=="hashtag" && self.secret!=""){
+        if(self.searchType=="hashtag"){
             if(self.twText=="") self.twText = "#";
             let postdata = {
                 text: `${self.twText} lang:${self.queryLang}`,
                 geo: self.twGeomData(self.location),
-                secret: self.secret,
+                //secret: self.secret,
                 qType: self.queryType
             };
-            self.master.shared.secret = self.secret;
+            //self.master.shared.secret = self.secret;
             self.waiting = true;
             $http({url: "twitter-feeds", method:"post", data:postdata})
                 .then(function(response){
@@ -1359,6 +1372,7 @@ app.controller("TwitterController",function($scope,$http,$timeout,params){
                 });
             });
         }
+        /*
         else if(self.searchType=="user" && self.twText!="" && self.secret!=""){
             let postdata = {
                 user: self.twText.replace("@",""),
@@ -1378,6 +1392,7 @@ app.controller("TwitterController",function($scope,$http,$timeout,params){
                 });
             });
         }
+        */
     };
 
     self.getTrends = function(){
@@ -1519,7 +1534,6 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce, SocketS
             })
         });
         socket.on("info", () => {
-            console.log("lal");
             self.loadAnalysis();
         });
         socket.on("think", (data) => {
@@ -1564,7 +1578,8 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce, SocketS
         try {
             await $http.post("send-chat-msg", {msg:msg});
             if (/^@bot/.test(msg)){
-                await $http.post("ask-assistant", { msg, feeds: self.feeds });
+                let feedlist = (self.selectedFeeds.length > 0)? self.selectedFeeds : self.feeds;
+                await $http.post("ask-assistant", { msg: msg, feeds: feedlist });
             }
         } catch (err){
             console.error("Chat error:", err);
@@ -1744,3 +1759,8 @@ var isSubstring = function(seq, original){
     }
     return false;
 };
+
+function isMobileDevice() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+}

@@ -7,7 +7,7 @@ app.controller("SesListController",function($scope, $http, $uibModal){
     self.newsesopen = false;
     self.sessions = [];
     self.newses = {name: "", descr: ""};
-    self.activeUser = "";
+    self.activeUser = {};
 
     self.toggleOpen = function(){
         self.newsesopen = !self.newsesopen;
@@ -34,7 +34,7 @@ app.controller("SesListController",function($scope, $http, $uibModal){
     self.confirmDeleteSession = function(ses, event){
         event.stopPropagation();
         event.preventDefault();
-        if (confirm("¿Seguro que quieres eliminar la sesión "+ ses.name+"?")){
+        if (confirm("¿Are you sure to delete session "+ ses.name+"?")){
             self.deleteSession(ses.id);
         }
     }
@@ -47,8 +47,8 @@ app.controller("SesListController",function($scope, $http, $uibModal){
         })
     }
 
-    self.getId = function() {
-         $http.get("current-user").then(function(response){
+    self.getCurrentUser = function() {
+         $http.post("current-user").then(function(response){
             self.activeUser = response.data;
          })
     }
@@ -73,7 +73,7 @@ app.controller("SesListController",function($scope, $http, $uibModal){
     };
 
     self.updateList();
-    self.getId();
+    self.getCurrentUser();
 });
 
 app.controller("SesUsersController",function($scope,$http,$timeout,params){

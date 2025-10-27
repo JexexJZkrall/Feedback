@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html ng-app="Profile">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Feedback</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="css/main.css"/>
+    <script src="libs/jquery.min.js"></script>
+    <script src="libs/angular.min.js"></script>
+    <script src="libs/ui-bootstrap-tpls-1.1.2.min.js"></script>
+    <script src="libs/angular-bootstrap-multiselect.js"></script>
+    <script src="js/profileapp.js"></script>
+</head>
+<body class="bg-green">
+
+<div class="profile-container" ng-controller="ProfileController">
+    <div>
+        <a href="logout" class="pull-right btn btn-default" style="margin-top: 8px">Logout</a>
+        <a href="/" class="pull-right btn btn-default" style="margin-top: 8px">Back</a>
+        <h2>{{activeUser.fname}}</h2>
+        <hr>
+    </div>
+    <div class="profile-data">
+        <div class="row">
+            <div class="col-xs-3">Username:</div>
+            <div class="col-xs-9">{{activeUser.name}}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-3">Mail:</div>
+            <div class="col-xs-9">{{activeUser.mail}}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-3">Sex:</div>
+            <div class="col-xs-9">{{activeUser.sex}}</div>
+        </div>
+        <div>
+            <button class="btn btn-default pull-right" ng-click="toggleEdit()">Edit Profile</button>
+        </div>
+    </div>
+    <div class="profile-data" ng-if="editProf">
+        <div class="row">
+            <div class="col-xs-2">Mail:</div>
+            <div class="col-xs-10"><input class="form-control input-sm" ng-model="editValues.newMail"/></div>
+        </div>
+        <span ng-show="!isEmailValid" style="color:red; margin-left:10px;">
+            Invalid email address
+        </span>
+        <div class="row">
+            <div class="col-xs-2">Sex:</div>
+            <div class="col-xs-10">
+                <select class="form-control" ng-options="option.value as option.label for option in sexOptions" ng-model="editValues.newSex"></select>
+            </div>
+        </div>
+        <!--
+        <div class="row">
+            <div class="col-xs-2">TwitterApiKey:</div>
+            <div class="col-xs-10"><input class="form-control input-sm" ng-model="newMail"/></div>
+        </div>
+        -->
+        <div>
+            <button class="btn btn-success pull-right" ng-click="saveData()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
