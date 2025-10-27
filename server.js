@@ -72,7 +72,7 @@ app.get("/profile", function(req,res){
     if(req.session.uid){
         res.render("profile");
     } else
-        res.redirect(".");
+        res.redirect("/");
 })
 
 app.get("/login",function(req,res){
