@@ -153,7 +153,7 @@ var getTwtByPlace = function(feeds, locations){
 }
 
 var getUserAndText = function(feeds){
-    let smallFeeds = feeds.map((feed, index) => `{Tweet: ${index + 1}, author: ${feed.extra.split('|')[1].toLowerCase()}, descr: ${feed.descr}}`);
+    let smallFeeds = feeds.map((feed, index) => `{Tweet: ${feed.order}, author: ${feed.extra.split('|')[1].toLowerCase()}, descr: ${feed.descr}}`);
     let strFeeds = smallFeeds.join(", ");
     return strFeeds;
 }

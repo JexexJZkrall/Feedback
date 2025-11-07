@@ -1697,12 +1697,10 @@ app.controller("ChatController", function($scope, $http, $timeout, $sce, SocketS
     })
 
     self.shared.referenceMsg = (order) => {
-        self.chatOpened = true;
         self.newMsg += " %Tweet"+order+" ";
     };
 
     self.shared.referencePlace = (lat, lng) => {
-        self.chatOpened = true;
         self.newMsg += "{"+lat+","+lng+"}";
     }
 
