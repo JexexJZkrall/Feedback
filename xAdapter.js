@@ -3,14 +3,28 @@ var pg = require('pg');
 var twConfig = require("./passwords.js")("twConfig");
 var twSecret = require("./passwords.js")("twSecret");
 var conString = require("./passwords.js")("conString");
-var twCount = require("./passwords")("twCount");
-var pLimit = require('p-limit');
+var twCount = require("./passwords.js")("twCount");
+var pLimit = require("p-limit");
+var mapKey = require("./passwords.js")("maps_key");
+var fetch = require("node-fetch");
+
 
 const apiKey = require("./passwords.js")("twApiIoKey"); 
 const endpointTweets = "https://api.twitterapi.io/twitter/tweet/advanced_search";
 const endpointTrends = "https://api.twitterapi.io/twitter/trends";
 const fs = require("fs");
+
 const path = require("path");
+const filepath = path.join(__dirname, "resources/data/country_woeids.json");
+var countries; 
+fs.readFile(filepath, "utf-8", (err,data) => {
+    if (err){
+        console.error("Error reading woeid file", err);
+        res.end("[]");
+        return;
+    }
+    countries = JSON.parse(data);
+})
 
 const client = new TwitterApi(twConfig["bearer_token"]);
 const rClient = client.readOnly;
@@ -32,7 +46,9 @@ module.exports.tweetsAsFeeds = function(socket){
             q: data["text"],
             count: twCount,
             geocode: data["geo"],
-            qType: data["qType"]
+            qType: data["qType"],
+            fids: data["fids"],
+            tCount: data["tCount"]
         };
         var inow = ""+(+Date.now());
         let ses = req.session.ses;
@@ -47,7 +63,7 @@ module.exports.tweetsAsFeeds = function(socket){
             return res.status(409).end();
         }
         try {
-            fetchTweets(twOptions["q"], twOptions["geocode"], twOptions["qType"])
+            fetchTweets(twOptions["q"], twOptions["geocode"], twOptions["qType"], twOptions["fids"], twOptions["tCount"])
                 .then(async function(tweets){
                     const adapter = adapterTweetToFeed(twOptions.geocode,inow);
                     
@@ -90,26 +106,16 @@ module.exports.trendings = async function(req, res){
         return;
     }
     let queryCountry = req.body["country"];
-    let parsedData;
-    let filepath = path.join(__dirname, "resources/data/country_woeids.json");
-    fs.readFile(filepath, "utf-8", (err,data) => {
-        if (err){
-            console.error("Error reading woeid file", err);
-            res.end("[]");
-            return;
-        }
-        try {
-            parsedData = JSON.parse(data);
-            let country = parsedData.find(c => c.place_name.toLowerCase() == queryCountry.toLowerCase()); 
-            let woeid = country? country.woeid : 1;
-            fetchTrends(woeid).then(function(response){
-                res.end(JSON.stringify(response));
-            });          
-        } catch (err){
-            console.error("Error fetching trends", err);
-            res.end("[]");
-        }
-    })
+    try {
+        let country = countries.find(c => normalizeLocation(c.place_name) == normalizeLocation(queryCountry)); 
+        let woeid = country? country.woeid : 1;
+        fetchTrends(woeid).then(function(response){
+            res.end(JSON.stringify(response));
+        });          
+    } catch (err){
+        console.error("Error fetching trends", err);
+        res.end("[]");
+    }
 };
 
 module.exports.userTweets = function(req, res){
@@ -162,11 +168,12 @@ async function fetchTrends(woeid){
     }
 }
 
-async function fetchTweets(query, geo, qtype) {
+async function fetchTweets(query, geo, qtype, fids, tCount) {
     try {
         let allTweets = [];
-        cursor = null;
-        pageCount = 0;
+        let cursor = null;
+        let pageCount = 0;
+        let usedSpace = (fids)? fids.length : 0;
         do{
             let params = new URLSearchParams({queryType: qtype, query: query, geocode: geo});
             if (cursor) {
@@ -181,6 +188,7 @@ async function fetchTweets(query, geo, qtype) {
             }
             let data = await response.json();
             if (data.tweets && data.tweets.length > 0) {
+                if (fids) data.tweets = data.tweets.filter(t => !fids.includes(t.id));
                 if(allTweets.length == 0){
                     allTweets = data.tweets;
                 } else {
@@ -196,7 +204,7 @@ async function fetchTweets(query, geo, qtype) {
                 cursor = null;
                 console.log("No more pages.");
             }
-        } while (cursor && pageCount < 5);
+        } while (cursor && !(allTweets.length + usedSpace >= 200) && (allTweets.length + 20 <= tCount));
         return allTweets;  
     } catch (error) {
         console.error("Error fetching tweets:", error);
@@ -213,17 +221,22 @@ var adapterTweetToFeed = function(gc,inow){
     if(gc!=null)
         ss = wktFromCoords(gc.split(",")[0],gc.split(",")[1]);
     return async function(tweet,i){
-        let geoloc = null;
         let username = null;
+        let geoloc = null;
+        let address = null;
         if(tweet.author){
             username = tweet.author.userName;
-            try{
-                let coords = await getGeoLatLng(tweet.author.location);
-                if(coords){
-                    geoloc = wktFromCoords(coords[0], coords[1]);
+            loc = tweet.author.location.trim();
+            if(loc){
+                try{
+                    let coords = await getGeoLatLng(tweet.author.location);
+                    if(coords){
+                        address = await cordToAddress(coords[0],coords[1]);
+                        geoloc = wktFromCoords(coords[0], coords[1]);
+                    }
+                }catch(err){
+                    console.error("error fetching coords",err);
                 }
-            }catch(err){
-                console.error("error fetching coords",err);
             }
         }
         return {
@@ -232,8 +245,9 @@ var adapterTweetToFeed = function(gc,inow){
             author: id_tb,
             time: +(new Date(tweet.createdAt)),
             geom: geoloc,
+            place: address,
             parentfeed: -1,
-            extra: tweet.id + "|@" + username + "|" + ss + "|" + inow
+            extra: tweet.id + "|@" + username + "|" + ss + "|" + inow + "|" + tweet.author.location
         };
     };
 };
@@ -270,18 +284,73 @@ var wktFromCoords = function(lat,lng){
     return "POINT("+lat+" "+lng+")";
 };
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 var getGeoLatLng = async function(location){
     let username = 'jexexjzkrall';
-    let geoApi = `https://secure.geonames.org/searchJSON?q=${encodeURIComponent(location)}&maxRows=1&username=${username}&lang=es`;
+    await sleep(200);
+    for(let country of countries){
+        if (normalizeLocation(country.place_name) == normalizeLocation(location)){
+            let countryURL = `http://api.geonames.org/countryInfoJSON?country=${country.country_code}&username=${username}&lang=es`;
+            let cResponse = await fetch(countryURL);
+            let cData = await cResponse.json();
+            await sleep(1000);
+            if(cData.geonames && cData.geonames.length >0){
+                let c = cData.geonames[0];
+                let capCountry = encodeURIComponent(c.capital+","+c.countryCode)
+                let capitalURL = `http://api.geonames.org/searchJSON?q=${capCountry}&maxRows=1&username=${username}&lang=es`;
+                let capResponse = await fetch(capitalURL);
+                let capData = await capResponse.json();
+                let cap = capData.geonames[0];
+                return [parseFloat(cap.lat), parseFloat(cap.lng)]; 
+            }
+            return null
+        }
+    }
+
+    let geoApi = `http://api.geonames.org/searchJSON?q=${encodeURIComponent(location)}&maxRows=1&username=${username}&lang=es`;
     let response = await fetch(geoApi);
     let data = await response.json();
-    
-    if (data.totalResultsCount > 0) {
+    if (data.totalResultsCount > 0 && data.geonames.length > 0) {
         let place = data.geonames[0];
+        if(parseFloat(place.lat) == 0 && parseFloat(place.lng) == 0){
+            return null
+        }
         return [parseFloat(place.lat), parseFloat(place.lng)];
     }
     return null;
 }
+
+var cordToAddress = async function(lat,lng) {
+    let url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${mapKey}&sensor=false`;
+    try {
+        let response = await fetch(url);
+        let data = await response.json();
+        if (data.status === "OK" && data.results.length >0) {
+            let comps = data.results[0].address_components;
+            let locality = comps.find(comp => comp.types.includes("locality"))?.long_name;
+            let area_three = comps.find(comp => comp.types.includes("administrative_area_level_3"))?.long_name;
+            let area_two = comps.find(comp => comp.types.includes("administrative_area_level_2"))?.long_name;
+            let area_one = comps.find(comp => comp.types.includes("administrative_area_level_1"))?.long_name;
+            let country = comps.find(comp => comp.types.includes("country"))?.long_name;
+            let address = [locality, area_one, country].filter(Boolean).join(", ");
+            return address;
+        } else if (data.status === "ZERO_RESULTS"){
+            return "No location available";
+        } else {
+            throw new Error("Error finding location: "+data.status+""+data.error_message);
+        }
+    } catch (err){
+        console.log(err.message);
+    }
+};
+
+var normalizeLocation = function(loc){
+    loc = loc.toLowerCase();
+    loc = loc.replace(/[^\p{L}\p{N}\s]/gu, "");
+    loc = loc.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return loc.trim();
+};
 
 /**
  * Adds a tweet feed to the database
@@ -289,8 +358,8 @@ var getGeoLatLng = async function(location){
  * @param ses The session where the feed belongs to
  */
 var addDBTweet = async function(db,tw,ses){
-    var sql = "insert into feeds(descr,time,author,sesid,geom,extra) values($1,$2,$3,$4,$5,$6);";
-    await db.query(sql,[tw.descr,new Date(tw.time),tw.author,ses,tw.geom,tw.extra]);
+    var sql = "insert into feeds(descr,time,author,sesid,geom,extra,place) values($1,$2,$3,$4,$5,$6,$7);";
+    await db.query(sql,[tw.descr,new Date(tw.time),tw.author,ses,tw.geom,tw.extra,tw.place]);
 }
 
 /**

@@ -427,6 +427,20 @@
         "country_code": "US"
     },
     {
+        "place_name": "USA",
+        "country": "USA",
+        "woeid": 23424977,
+        "type": "Country",
+        "country_code": "US"
+    },
+    {
+        "place_name": "US",
+        "country": "US",
+        "woeid": 23424977,
+        "type": "Country",
+        "country_code": "US"
+    },
+    {
         "place_name": "Venezuela",
         "country": "Venezuela",
         "woeid": 23424982,

@@ -72,7 +72,7 @@ app.get("/profile", function(req,res){
     if(req.session.uid){
         res.render("profile");
     } else
-        res.redirect("back");
+        res.redirect(".");
 })
 
 app.get("/login",function(req,res){
@@ -268,7 +268,7 @@ app.post("/user-list-search", rpg.multiSQL({
 
 app.post("/feed-list", rpg.multiSQL({
     dbcon: conString,
-    sql: "select distinct on (descr) id, author, descr, time, st_astext(geom) as geom, parentfeed, extra from feeds where sesid=$1 order by descr, time desc",
+    sql: "select distinct on (descr) id, author, descr, time, st_astext(geom) as geom, parentfeed, extra, place from feeds where sesid=$1 order by descr, time desc",
     sesReqData: ["uid","ses"],
     sqlParams: [rpg.sqlParam("ses","ses")]
 }));

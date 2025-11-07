@@ -33,7 +33,7 @@
             <div class="btn-group hidden-xs pull-right">
                 <div uib-dropdown class="btn-group spatiated-hz">
                     <button uib-dropdown-toggle class="btn btn-default">
-                        Users ({{connectedUsers.length}}) <span class="caret"></span>
+                        Active Users ({{connectedUsers.length}}) <span class="caret"></span>
                     </button>
                     <ul uib-dropdown-menu>
                         <li ng-repeat="user in connectedUsers">
@@ -41,12 +41,14 @@
                         </li>
                     </ul>
                 </div>
-                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="openTwitterModal()"><i class="fa fa-twitter"> Search Tweets</i></button>
-                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"> Search History</i></button>
+                <button class="btn btn-default spatiated-hz" ng-disabled="feeds.length >= 200" ng-click="openTwitterModal()"><span ng-if="feeds.length < 200"><i class="fa fa-twitter"></i> Search Tweets</span><span ng-if="feeds.length >= 200"><i class="fa fa-twitter"></i>Tweet limit reached</span></button>
+                <button class="btn btn-default spatiated-hz" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"> History</i></button>
+                <!--
                 <button class="btn btn-default spatiated-hz" ng-click="toggleFeeds()" ng-class="{'active':feedsOpened}"><i class="fa fa-comments-o"></i> Tweets</button>
                 <button class="btn btn-default spatiated-hz" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i> Discussion</button>
-                <a class="btn btn-default spatiated-hz" href="seslist"><i class="fa fa-chevron-left"></i> Change Session</a></li>
+                -->
                 <a class="btn btn-default spatiated-hz" href="profile"><i class="fa fa-user"></i> Profile</a>
+                <a class="btn btn-default spatiated-hz" href="seslist"><i class="fa fa-chevron-left"></i> Change Session</a></li>
                 <a class="btn btn-default spatiated-hz" href="logout"><i class="fa fa-sign-out"></i> Log out</a>
             </div>
             <div class="visible-xs-block pull-right">
@@ -57,7 +59,7 @@
             <div class="btn-group-vertical top-bar-vertical" ng-if="isCollapsed">
                 <div uib-dropdown class="btn-group spatiated-hz">
                     <button uib-dropdown-toggle class="btn btn-default">
-                        Users ({{connectedUsers.length}}) <span class="caret"></span>
+                        Active Users ({{connectedUsers.length}}) <span class="caret"></span>
                     </button>
                     <ul uib-dropdown-menu>
                         <li ng-repeat="user in connectedUsers">
@@ -65,10 +67,12 @@
                         </li>
                     </ul>
                 </div>
-                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="openTwitterModal()"><i class="fa fa-twitter"> Search Tweets</i></button>
-                <button class="btn btn-default spatiated-hz" ng-show="twitterEnabled" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"> Search History</i></button>
+                <button class="btn btn-default spatiated-hz" ng-disabled="feeds.length >= 200" ng-click="openTwitterModal()"><span ng-if="feeds.length < 200"><i class="fa fa-twitter"></i> Search Tweets</span><span ng-if="feeds.length >= 200"><i class="fa fa-twitter"></i>Tweet limit reached</span></button>
+                <button class="btn btn-default spatiated-hz" ng-click="getHistorySearches()" ng-class="{'active':historyOpened}"><i class="fa fa-clock-o"> History</i></button>
+                <!--
                 <button class="btn btn-default spatiated-hz" ng-click="toggleFeeds()" ng-class="{'active':feedsOpened}"><i class="fa fa-comments-o"></i> Tweets</button>
                 <button class="btn btn-default spatiated-hz" ng-click="openDisChat()" ng-class="{'active':chatOpened}"><i class="fa fa-comments"></i> Discussion</button>
+                -->
                 <a class="btn btn-default spatiated-hz" href="seslist"><i class="fa fa-chevron-left"></i> Change Session</a></li>
                 <a class="btn btn-default spatiated-hz" href="logout"><i class="fa fa-sign-out"></i> Log out</a>
             </div>
@@ -79,6 +83,7 @@
     <div class="row abs-full-height">
         <div class="full-height flex-column resizable-hor feeds-container" ng-class="{'col-sm-3': chatOpened,
                     'col-sm-4': !chatOpened}" ng-show="feedsOpened">
+            <!--
             <div class="simple-padding" ng-controller="NewFeedController">
                 <span class="label label-primary over-right" ng-class="{'label-danger':newFeed.com.length>140}">{{newFeed.com.length}}</span>
                 <textarea id="new-feed-box" class="form-control" rows="3" ng-model="newFeed.com"></textarea>
@@ -90,8 +95,9 @@
                 </div>
             </div>
             <hr/>
+            -->
             <div class="input-group" ng-controller="SearchController">
-                <input type="text" class="form-control" ng-model="simpleSearchBox" ng-keypress="($event.which === 13)?simpleSearch():0" placeholder="Filter by word"/>
+                <input type="text" class="form-control" ng-model="simpleSearchBox" ng-keypress="($event.which === 13)?simpleSearch():0" placeholder="Filter tweets by word"/>
                 <span class="input-group-btn">
                     <button class="btn btn-default" ng-click="simpleSearch()"><i class="fa fa-search"></i></button>
                     <button class="btn btn-default" ng-click="restoreFeeds()"><i class="fa fa-times"></i></button>
@@ -100,7 +106,7 @@
                     </button>
                 </span>
             </div>
-            <button class="btn btn-default" ng-click="onlyhighlights()"><span>{{onlyHighFeeds ? 'See all tweets' : 'See selected tweets'}}</span></button>
+            <button class="btn btn-default" ng-click="onlyhighlights()"><span>{{onlyHighFeeds ? 'See all tweets ('+feeds.length+')' : 'See selected tweets ('+selectedFeeds.length+')'}}</span></button>
             <div class="simple-padding feeds-list scrollable" ng-if="onlyHighFeeds">
                 <div ng-if="highlights.length === 0">
                     No highlighted tweets
@@ -146,16 +152,27 @@
             'col-sm-8': !chatOpened && feedsOpened, 'col-sm-6': feedsOpened && chatOpened}">
             <div class="flex-element-mid resizable-ver" ng-controller="MapController">
                 <div id="map"></div>
+                <div class="markerPanel" ng-if="selectedMarker">
+                    <a class="btn btn-default btn-xs" style="align-self: flex-end;" ng-click="closeInfoPanel()"><i class="fa fa-times"></i></a>
+                    <!--
+                    <div>Coordinates: {{selectedMarker.coords.lat()}},{{selectedMarker.coords.lng()}}</div>
+                    -->
+                    <div>Location: {{selectedMarker.address}}</div>    
+                    <div>Tweets in this location: {{selectedMarker.fids.length}}</div>
+                    <button class="btn btn-default btn-xs" ng-click="shared.referencePlace(selectedMarker.coords.lat(), selectedMarker.coords.lng())">Reference place in chat</button>
+                </div>
+                <!--
                 <div id="mapctrl">
                     <a class="map-btn" id="markbtn">Place marker</a>
                 </div>
+                -->
                 <input type="text" id="pac-input">
             </div>
             <div class="flex-element-mid resizable-ver" ng-controller="GraphController">
                 <div id="graph"></div>
                 <div class="graph-ov-btn graph-descr" ng-show="detailBox.show">
                     <a class="btn btn-white btn-xs" ng-show="detailBox.expandible" ng-click="appendCat()"><i class="fa fa-expand"></i></a>
-                    <a class="btn btn-white btn-xs" ng-show="detailBox.expandible && twitterEnabled" ng-click="searchFromTw()"><i class="fa fa-twitter"></i></a>
+                    <a class="btn btn-white btn-xs" ng-show="detailBox.expandible" ng-click="searchFromTw()"><i class="fa fa-twitter"></i></a>
                     <a class="btn btn-white btn-xs" ng-show="!detailBox.expandible" ng-click="removeItem()"><i class="fa fa-trash"></i></a>
                 </div>
                 <div class="graph-ov-btn graph-zoom">
@@ -171,12 +188,34 @@
              'col-sm-5': !feedsOpened}" ng-show="chatOpened" ng-controller="ChatController">
             <div>
                 <button class="btn btn-default" ng-click="changeChat('chat')"><i class="fa fa-comments"></i> Chat</button>
+                <div uib-dropdown class="btn-group spatiated-hz">
+                    <button uib-dropdown-toggle class="btn btn-default">
+                        Common tweets analysis <span class="caret"></span>
+                    </button>
+                    <ul uib-dropdown-menu>
+                        <li>
+                            <a class="dropdown-item" ng-click="changeChat('insight')"><i class="fa fa-lightbulb-o"></i> Insights</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" ng-click="changeChat('sentiment')"><i class="fa fa-heart"></i> Sentiments</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" ng-click="changeChat('stance')"><i class="fa fa-balance-scale"></i> Stances</a>
+                        </li>
+                    </ul>
+                </div>
+                <!--
                 <button class="btn btn-default" ng-click="changeChat('insight')"><i class="fa fa-lightbulb-o"></i> Insight</button>
                 <button class="btn btn-default" ng-click="changeChat('sentiment')"><i class="fa fa-heart"></i> Sentiment</button>
                 <button class="btn btn-default" ng-click="changeChat('stance')"><i class="fa fa-balance-scale"></i> Stance</button>
+                -->
             </div>
             <div class="flex-element" ng-show="modes['chat'][1]">
                 <h4 class="chat-header"><i class="fa fa-comments"></i> Chat</h4>
+                <p>Chat with other active users or ask @bot to help you analyse tweets!
+                    If you have selected tweets from the list, @bot will answer using 
+                    that info. Deselect all tweets so @bot uses the entire list. 
+                </p>
                 <div class="chat-container scrollable" id="chatbox">
                     <div class="chat-box" ng-repeat="chat in chatMsgs">
                         <strong ng-bind="chat.author"></strong>
@@ -198,6 +237,7 @@
                     <h4 class="chat-header"><i class="fa fa-lightbulb-o"></i> Insights</h4>
                     <button class="btn btn-default" ng-click="getInfo('insight')">Get Tweet Insights</button>
                 </div>
+                <p>Get Insights from the list of tweets!</p>
                 <div class="chat-container scrollable">
                     <p class="bot-info" ng-if="modes['insight'][0] == ''">No insights available. Press above to get.</p>
                     <div class="bot-info" bind-html-compile="modes['insight'][0]"></div>
@@ -208,6 +248,7 @@
                     <h4 class="chat-header"><i class="fa fa-heart"></i> Sentiments</h4>
                     <button class="btn btn-default" ng-click="getInfo('sentiment')">Get Tweet Sentiments</button>
                 </div>
+                <p>Do sentiment analysis of the tweets! (happiness, anger, fear, disgust, sadness, surprise)</p>
                 <div class="chat-container scrollable">
                     <p class="bot-info" ng-if="modes['sentiment'][0] == ''">No sentiments available. Press above to get.</p>
                     <div class="bot-info" bind-html-compile="modes['sentiment'][0]"></div>
@@ -218,6 +259,7 @@
                     <h4 class="chat-header"><i class="fa fa-balance-scale"></i> Stances</h4>
                     <button class="btn btn-default" ng-click="getInfo('stance')">Get Tweet Stances</button>
                 </div>
+                <p>Identify tweet stances! (positive, negative, neutral)</p>
                 <div class="chat-container scrollable">
                     <p class="bot-info" ng-if="modes['stance'][0] == ''">No stances available. Press above to get.</p>
                     <div class="bot-info" bind-html-compile="modes['stance'][0]"></div>

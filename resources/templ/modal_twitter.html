@@ -2,8 +2,9 @@
     <h3 class="modal-title">Import data from Twitter <i class="fa fa-twitter"></i></h3>
 </div>
 <div class="modal-body">
-    <span>Import most recent tweets from Twitter which match the keywords and are close to the selected point in the map.</span>
+    <span>Import tweets from Twitter which match the keywords</span>
     <br/><br/>
+    <!--
     <div class="row">
         <div class="col-xs-4 as-label">Search:</div>
         <div class="col-xs-8">
@@ -13,16 +14,19 @@
             </div>
         </div>
     </div>
+    -->
     <div class="row">
+        <!--
         <div class="col-xs-4">Keywords / Username:</div>
-        <div class="col-xs-8"><input class="form-control input-sm" id="twitter-modal-query" ng-model="twText"/></div>
+        -->
+        <div class="col-xs-3">Keywords: </div>
+        <div class="col-xs-9"><input class="form-control input-sm" id="twitter-modal-query" ng-model="twText" placeholder="wrap in '' to match exact frase"/></div>
     </div>
     <!--
     <div class="row">
         <div class="col-xs-4">Secret key:</div>
         <div class="col-xs-8"><input class="form-control input-sm" type="password" ng-model="secret"/></div>
     </div>
-    -->
     <div class="row" ng-show="searchType=='hashtag'">
         <div class="col-xs-4">Location:</div>
         <div class="col-xs-8">
@@ -30,9 +34,21 @@
             <span class="label label-warning" ng-show="!locm">Using Map center</span>
         </div>
     </div>
+    -->
     <div class="row">
-        <div class="col-xs-4">Search for:</div>
-        <div class="col-xs-8">
+        <div class="col-xs-3">Tweet count:</div>
+        <div class="col-xs-5">
+            <select class="form-control input-sm" id="tweetCount" ng-model="tCount">
+                <option value="40">&lt; 40</option>
+                <option value="60" selected>&lt; 60</option>
+                <option value="80">&lt; 80</option>
+                <option value="100">&lt; 100</option>
+            </select>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-3">Search for:</div>
+        <div class="col-xs-4">
             <select class="form-control input-sm" id="queryType" ng-model="queryType">
                 <option value="Latest" selected>Latest</option>
                 <option value="Top">Top</option>
@@ -40,8 +56,8 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-xs-4">Language:</div>
-        <div class="col-xs-8">
+        <div class="col-xs-3">Language:</div>
+        <div class="col-xs-4">
             <select class="form-control input-sm" id="language" ng-model="queryLang">
                 <option value="en" selected>English</option>
                 <option value="es">Spanish</option>
@@ -58,11 +74,11 @@
     <hr/>
     <br/>
     <div class="row">
-        <div class="col-xs-4"><h4>Trending topics:</h4></div>
-        <div class="col-xs-2">
-            <a class="btn btn-sm btn-default pull-right" ng-click="getTrends()">Show Trends</a>
-        </div>
+        <div class="col-xs-3"><h4>Search trends:</h4></div>
         <div class="col-xs-6"><input class="form-control input-sm" placeholder="Indicate country. Default is worldwide" ng-model="trendCountry"/></div>
+        <div class="col-xs-2">
+            <a class="btn btn-sm btn-default pull-right" ng-click="getTrends()">Search Trends</a>
+        </div>
     </div>
     <span ng-repeat="tr in trends">
         <a class="green spatied" ng-click="fillText(tr.trend.name)">{{tr.trend.name}}</a>
